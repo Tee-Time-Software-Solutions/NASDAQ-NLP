@@ -123,3 +123,47 @@ Ensure `.env` contains valid Kaggle credentials before downloading the dataset.
 
 ## Authors
 
+# Event Metadata Pipeline
+
+
+## notebooks/01_validate_event_metadata.ipynb
+
+This notebook validates the correctness of the metadata pipeline.
+
+It performs the following checks:
+
+verifies that all transcript timestamps were parsed correctly
+
+independently recomputes the after-market-close indicator
+
+independently recomputes the event trading day
+
+checks that all event dates fall on valid business days
+
+identifies any mismatches between recomputed values and pipeline output
+
+The notebook does not modify the dataset. It only verifies that the pipeline output is correct.
+
+## Generated Data Files
+
+data/processed/event_metadata_final.csv
+
+The final event metadata dataset produced by the pipeline.
+
+Each row represents a single earnings call event and includes:
+
+Column	Description
+ticker	stock ticker
+file_name	transcript filename
+call_datetime_gmt	call timestamp in GMT
+call_datetime_et	call timestamp converted to Eastern Time
+after_market_close_et	whether the call occurred after 4:00 PM ET
+event_trading_day_final	trading day used for the event study
+
+This dataset is used for:
+
+merging with stock price data
+
+computing abnormal returns
+
+performing the earnings call event study.
