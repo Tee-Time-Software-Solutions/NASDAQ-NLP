@@ -7,3 +7,4 @@ nltk
 scikit-learn
 statsmodels
 yfinance==0.2.40
+jupyter
