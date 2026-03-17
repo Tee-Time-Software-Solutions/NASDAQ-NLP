@@ -1,0 +1,49 @@
+{
+  "run_timestamp_utc": "2026-03-17T08:34:39.723512+00:00",
+  "metadata_file": "data/processed/event_metadata_final.csv",
+  "raw_output_dir": "data/raw/market_data",
+  "download_source": "yfinance / Yahoo Finance",
+  "event_anchor_variable": "event_trading_day_final",
+  "date_range_rule": {
+    "pull_start": "min(event_trading_day_final) - 200 calendar days",
+    "pull_end": "max(event_trading_day_final) + 30 calendar days"
+  },
+  "download_window": {
+    "start_date": "2015-06-29",
+    "end_date": "2020-09-19"
+  },
+  "event_date_summary": {
+    "min_event_trading_day_final": "2016-01-15",
+    "max_event_trading_day_final": "2020-08-20",
+    "num_events": 188,
+    "num_unique_tickers": 10
+  },
+  "stock_download_summary": {
+    "tickers_requested": [
+      "AAPL",
+      "AMD",
+      "AMZN",
+      "ASML",
+      "CSCO",
+      "GOOGL",
+      "INTC",
+      "MSFT",
+      "MU",
+      "NVDA"
+    ],
+    "tickers_requested_count": 10,
+    "tickers_with_no_data": [],
+    "tickers_with_no_data_count": 0,
+    "failed_tickers": [],
+    "failed_tickers_count": 0,
+    "rows_downloaded": 13170,
+    "min_stock_date": "2015-06-29",
+    "max_stock_date": "2020-09-18"
+  },
+  "index_download_summary": {
+    "ticker": "^IXIC",
+    "rows_downloaded": 1317,
+    "min_index_date": "2015-06-29",
+    "max_index_date": "2020-09-18"
+  }
+}

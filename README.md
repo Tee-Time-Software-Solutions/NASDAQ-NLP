@@ -167,3 +167,43 @@ merging with stock price data
 computing abnormal returns
 
 performing the earnings call event study.
+
+
+## Market Data Alignment
+
+Market data is downloaded relative to the event trading day, not the raw calendar date of the earnings call.
+
+The event trading day is defined by the variable:
+
+event_trading_day_final
+
+This variable accounts for market timing:
+
+If the earnings call occurs before market close (4:00 PM ET) →
+the event trading day is the same day
+
+If the call occurs after market close →
+the event trading day is the next trading day
+
+All return calculations, event windows, and model estimation are anchored on this event trading day.
+
+## Download Window Logic
+
+To ensure sufficient data coverage for the event study, market data is pulled using the following rule:
+
+Start date = minimum(event_trading_day_final) − 200 calendar days
+
+End date = maximum(event_trading_day_final) + 30 calendar days
+
+This buffer ensures full coverage of:
+
+Estimation window: [-120, -20]
+
+Event windows: [0,1], [0,3]
+
+Volatility windows: [-10,-1], [+1,+10]
+
+## Reproducibility Note
+
+Because the download range is computed directly from event_trading_day_final, the market data pipeline is fully reproducible and automatically adapts to any changes in the underlying event dataset.
+
