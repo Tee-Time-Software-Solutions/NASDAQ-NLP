@@ -1,4 +1,6 @@
 kagglehub
+kaggle
+python-dotenv
 pandas
 numpy
 nltk
