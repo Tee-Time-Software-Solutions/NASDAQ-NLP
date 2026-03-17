@@ -1,5 +1,5 @@
 {
-  "run_timestamp_utc": "2026-03-17T08:34:39.723512+00:00",
+  "run_timestamp_utc": "2026-03-17T11:14:48.162938+00:00",
   "metadata_file": "data/processed/event_metadata_final.csv",
   "raw_output_dir": "data/raw/market_data",
   "download_source": "yfinance / Yahoo Finance",
