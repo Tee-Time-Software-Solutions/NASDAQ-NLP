@@ -71,7 +71,30 @@ Outputs:
 - `data/raw/market_data/nasdaq_index_raw.csv`
 - `outputs/logs/market_data_log.json` (+ timestamped copies)
 
-### 4) Run validations (recommended)
+### 4) Compute daily returns (stocks + index)
+Computes simple daily returns from the raw OHLCV data (uses **Adjusted Close**).
+
+```bash
+jupyter notebook
+```
+
+Then run:
+- `notebooks/03_compute_returns.ipynb`
+
+Outputs:
+- `data/processed/market_data_with_returns.csv`
+- `data/processed/index_returns.csv`
+
+### 5) Build event windows (event-time panel)
+Aligns stock returns + market returns around each event in **trading time** (event anchor: `event_trading_day_final`). Produces a panel that can be used to compute CAR/volatility later.
+
+Run:
+- `notebooks/04_build_event_windows.ipynb`
+
+Output:
+- `data/processed/event_windows.csv`
+
+### 6) Run validations (recommended)
 Start Jupyter and run the validation notebooks:
 
 ```bash
@@ -116,6 +139,11 @@ This supports common event-study windows (estimation + event windows) and gives 
 ### D) Validation notebooks (audit, not transformation)
 The notebooks in this repo are primarily **audit/validation artifacts**: they assert that the pipeline outputs are consistent and complete before downstream return calculations and modeling.
 
+### E) Returns and event-window construction (analysis-ready panels)
+After validating raw downloads, you added two analysis notebooks:
+- `notebooks/03_compute_returns.ipynb` computes daily returns for each ticker and the NASDAQ index.
+- `notebooks/04_build_event_windows.ipynb` builds an event-time panel in trading-day units (including windows like `[-120,-20]`, `[0,1]`, `[0,3]`, `[-10,-1]`, `[+1,+10]`), and writes `data/processed/event_windows.csv`.
+
 ## Repository map (what each file/folder corresponds to)
 
 ### Root
@@ -135,6 +163,8 @@ The notebooks in this repo are primarily **audit/validation artifacts**: they as
 - **`notebooks/01_event_metadata_exploration.ipynb`**: exploratory validation of the *v1* metadata logic; shows DST/after-hours edge cases and motivates the final rule.
 - **`notebooks/01_validate_event_metadata_final.ipynb`**: validates `data/processed/event_metadata_final.csv` (parsing success, timezone conversion, after-hours flag, business-day assignment consistency).
 - **`notebooks/02_validate_market_data.ipynb`**: validates `prices_raw.csv` and `nasdaq_index_raw.csv` (schema checks, duplicates, missing values, ticker coverage, and event-day coverage).
+- **`notebooks/03_compute_returns.ipynb`**: computes daily simple returns from Adjusted Close for each ticker and the NASDAQ index. Outputs `data/processed/market_data_with_returns.csv` and `data/processed/index_returns.csv`.
+- **`notebooks/04_build_event_windows.ipynb`**: aligns stock + market returns around each event in trading time and produces the event-time panel used for market model estimation/CAR/volatility windows. Output `data/processed/event_windows.csv`.
 
 ### `data/` (generated artifacts)
 Note: `data/raw/` and `data/processed/` are gitignored in this repo; they’re meant to be generated locally by running the scripts above.
@@ -144,13 +174,16 @@ Note: `data/raw/` and `data/processed/` are gitignored in this repo; they’re m
 - **`data/processed/event_metadata_final.csv`**: canonical event table used to anchor market alignment.
 - **`data/raw/market_data/prices_raw.csv`**: downloaded OHLCV for each ticker across the computed date range.
 - **`data/raw/market_data/nasdaq_index_raw.csv`**: downloaded OHLCV for `^IXIC` across the same date range.
+- **`data/processed/market_data_with_returns.csv`**: per-ticker daily returns computed from `prices_raw.csv` (Adjusted Close-based).
+- **`data/processed/index_returns.csv`**: daily NASDAQ index returns computed from `nasdaq_index_raw.csv`.
+- **`data/processed/event_windows.csv`**: event-time panel (one row per event-day relative time \(t\)) combining stock returns + market returns and selected event metadata.
 
 ### `outputs/`
 - **`outputs/logs/market_data_log.json`**: audit log emitted by `scripts/download_market_data.py` (includes date window, ticker coverage, failures, and min/max dates). Timestamped copies are also written alongside it.
 
 ## Current state / what’s next
-At the moment, the repo contains the **data acquisition + event/market alignment foundation** plus validation notebooks. The next natural steps (not yet implemented here) are:
-- compute returns, abnormal returns, and event-window CAR/volatility using the downloaded market data
+At the moment, the repo contains the **data acquisition + event/market alignment foundation**, plus notebooks that compute **returns** and build **event windows**. The next natural steps (not yet implemented here) are:
+- compute abnormal returns and CAR/volatility statistics from `data/processed/event_windows.csv`
 - extract sentiment features from transcripts (e.g., dictionary-based or model-based sentiment)
 - run regression/event study analyses to test asymmetric impact of negative vs positive sentiment
 
