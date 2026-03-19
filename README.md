@@ -4,7 +4,7 @@
 
 This project investigates whether **negative sentiment in earnings call transcripts has a stronger impact on market reactions than positive sentiment**.
 
-The pipeline builds a **clean, auditable event-study backbone**:
+The pipeline builds a **clean, auditable event-study backbone** and a reproducible modelling layer:
 
 1. **Transcript ingestion** (Kaggle) → raw transcript files  
 2. **Event metadata** (timezone + “after market close” logic) → event table with `event_trading_day_final`  
@@ -14,6 +14,8 @@ The pipeline builds a **clean, auditable event-study backbone**:
 6. **Abnormal returns** → expected vs actual returns in event time  
 7. **CAR & volatility change** → CAR[0,1], CAR[0,3], Δ volatility (post − pre)  
 8. **Final dataset** → one row per event: metadata + CAR + volatility, ready for sentiment merge and regression  
+9. **Sentiment feature generation** → lexicon and FinBERT event-level features  
+10. **Modelling and evaluation** → asymmetry tests, out-of-sample performance, diagnostics, and robustness summaries  
 
 ---
 
@@ -121,7 +123,13 @@ The transcript dataset is downloaded from Kaggle. You need a Kaggle account and 
 
 ## Pipeline overview
 
-The pipeline has two parts: **scripts** (data download + event metadata) and **notebooks** (returns, event windows, market model, abnormal returns, CAR, volatility, final dataset). Scripts must be run first; then notebooks must be run in the order given below because each notebook depends on outputs of the previous ones.
+The full workflow has three parts:
+
+1. **Data foundation** (scripts + notebooks 01–09): builds the event-study dataset  
+2. **Sentiment features** (scripts): builds lexicon and FinBERT features at event level  
+3. **Modelling and evaluation** (Data_Modelling notebook/scripts): fits models, tests asymmetry, and exports summary artifacts
+
+Scripts must be run first; then notebooks must be run in order because each step depends on earlier outputs.
 
 ### Scripts (run from project root)
 
@@ -130,6 +138,8 @@ The pipeline has two parts: **scripts** (data download + event metadata) and **n
 | 1 | `python scripts/download_data.py` | Downloads Kaggle earnings-call transcripts → `data/raw/earnings-call-transcripts/` |
 | 2 | `python scripts/build_event_metadata.py` | Builds event table → `data/processed/event_metadata_final.csv` |
 | 3 | `python scripts/download_market_data.py` | Downloads OHLCV (stocks + NASDAQ index) → `data/raw/market_data/prices_raw.csv`, `nasdaq_index_raw.csv` |
+| 4 | `python scripts/compute_lexicon_sentiment.py` | Builds lexicon sentiment features → `data/processed/lexicon_sentiment_features.csv` |
+| 5 | `python scripts/compute_finbert_sentiment.py` | Builds FinBERT sentiment features → `data/processed/finbert_sentiment_features.csv` |
 
 ### Notebooks (run in this order)
 
@@ -151,6 +161,16 @@ Optional/exploratory (do not affect the pipeline):
 
 - `01_data_collection_cleaning.ipynb` — placeholder.  
 - `01_event_metadata_exploration.ipynb` — explores v1 metadata and motivates the final event-day rule; no pipeline outputs.
+
+### Modelling notebooks and scripts
+
+After generating `event_study_dataset.csv` and sentiment feature files:
+
+- `notebooks/Data_Modelling/15_modelling_pipeline.ipynb` — main end-to-end modelling and evaluation notebook.
+- `notebooks/Data_Modelling/12_model_sentiment_vs_market.py` — CAR_01 model comparison script.
+- `notebooks/Data_Modelling/13_asymmetry_tests.py` — focused asymmetry test script.
+- `notebooks/Data_Modelling/14_results_summary.py` — compact paper-table summary script.
+- `notebooks/Data_Modelling/MODELLING_RESULTS_SUMMARY.md` — stakeholder-friendly interpretation of modelling outcomes.
 
 ---
 
@@ -224,6 +244,8 @@ event_metadata_final.csv, prices_raw, nasdaq_index_raw
 - **build_event_metadata.py** — Parses transcript filenames and headers (GMT call time), converts to ET, sets `after_market_close_et`, and assigns `event_trading_day_final` (same day or next business day after 4 PM ET). Writes `event_metadata_final.csv`.
 - **build_event_metadata_v1.py** — Old heuristic (GMT hour threshold); kept for reference. Output: `event_metadata_v1_rawrule.csv`.
 - **download_market_data.py** — Uses `event_metadata_final.csv` to get ticker list and date range (min/max event date ± buffer), downloads OHLCV via yfinance for stocks and ^IXIC. Writes `prices_raw.csv`, `nasdaq_index_raw.csv`, and logs under `outputs/logs/`.
+- **compute_lexicon_sentiment.py** — Computes event-level lexicon sentiment features from transcripts. Writes `lexicon_sentiment_features.csv`.
+- **compute_finbert_sentiment.py** — Computes event-level FinBERT sentiment features from transcripts. Writes `finbert_sentiment_features.csv`.
 
 ### Event metadata and market alignment
 
@@ -273,6 +295,11 @@ event_metadata_final.csv, prices_raw, nasdaq_index_raw
 - **07_compute_CAR.ipynb** — CAR[0,1], CAR[0,3] → `event_CAR.csv`.  
 - **08_compute_volatility_change.ipynb** — Volatility change → `event_volatility_change.csv`.  
 - **09_assemble_event_study_dataset.ipynb** — Final event-level dataset → `event_study_dataset.csv`.
+- **Data_Modelling/12_model_sentiment_vs_market.py** — CAR_01 model comparisons (market vs lexicon vs FinBERT vs full).
+- **Data_Modelling/13_asymmetry_tests.py** — Wald asymmetry test helper for CAR_01 example.
+- **Data_Modelling/14_results_summary.py** — Concise results summary generator for paper tables.
+- **Data_Modelling/15_modelling_pipeline.ipynb** — Main modelling/evaluation notebook (performance, asymmetry, diagnostics, robustness).
+- **Data_Modelling/MODELLING_RESULTS_SUMMARY.md** — Non-technical modelling results summary.
 
 ### `data/` (all generated; gitignored)
 
@@ -295,6 +322,15 @@ event_metadata_final.csv, prices_raw, nasdaq_index_raw
 - **event_CAR.csv** — CAR[0,1], CAR[0,3] per event.  
 - **event_volatility_change.csv** — Pre/post volatility and Δ volatility per event.  
 - **event_study_dataset.csv** — Final event-level dataset (metadata + CAR + volatility).
+- **lexicon_sentiment_features.csv** — Event-level lexicon sentiment features.
+- **finbert_sentiment_features.csv** — Event-level FinBERT sentiment features.
+- **model_results_car01.csv** — CAR_01 model comparison outputs from script.
+- **results_summary_for_paper.csv** — Compact summary table for report writing.
+- **asymmetry_tests_car01_lexicon.txt** — Asymmetry test output for CAR_01 lexicon example.
+- **model_performance_extended.csv** — Extended out-of-sample performance table across outcomes and model families.
+- **asymmetry_results_hc3_vs_cluster.csv** — Asymmetry comparison under HC3 vs clustered inference.
+- **diagnostics_summary.csv** — Model diagnostics summary (e.g., heteroskedasticity and VIF).
+- **robustness_grid_summary.csv** — Subperiod and winsorization robustness summaries.
 
 ### `outputs/`
 
@@ -304,15 +340,21 @@ event_metadata_final.csv, prices_raw, nasdaq_index_raw
 
 ## Current state and next steps
 
-- **Done:** Full event-study data pipeline from transcripts and market data to `event_study_dataset.csv` (one row per event, with CAR and volatility change).  
-- **Next:**  
-  - Merge transcript-based sentiment (e.g. dictionary or model) into `event_study_dataset.csv`.  
-  - Run regressions to test whether negative sentiment has a stronger association with market reactions (CAR, volatility) than positive sentiment.
+- **Done:**  
+  - Full event-study data pipeline from transcripts and market data to `event_study_dataset.csv`  
+  - Event-level sentiment feature generation (lexicon + FinBERT)  
+  - Modelling and evaluation workflow with asymmetry testing, expanded metrics, diagnostics, and robustness exports
+- **Next (optional improvements):**  
+  - Add section-level sentiment features (Presentation vs Q&A) for section robustness checks  
+  - Add additional finance controls (e.g., earnings surprise/fundamentals) to strengthen causal interpretation  
+  - Add a deployment/demo layer if required by course rubric
 
 ---
 
 ## Reproducibility
 
 - Recreate environment: `pip install -r requirements.txt` (with same Python version).  
-- Data: Run the three scripts, then notebooks 01–09 in order; do not skip or reorder.  
+- Data foundation: Run scripts `download_data.py`, `build_event_metadata.py`, `download_market_data.py`, then notebooks 01–09 in order; do not skip or reorder.  
+- Sentiment features: Run `compute_lexicon_sentiment.py` and `compute_finbert_sentiment.py`.  
+- Modelling: Run `notebooks/Data_Modelling/15_modelling_pipeline.ipynb` (and optional helper scripts in `notebooks/Data_Modelling/`).  
 - `.env` must contain valid Kaggle credentials before `download_data.py`.
