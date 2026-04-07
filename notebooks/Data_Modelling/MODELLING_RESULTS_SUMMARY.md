@@ -1,6 +1,6 @@
 # Modelling Results Summary
 
-This note explains the results from `notebooks/Data_Modelling/15_modelling_pipeline.ipynb` for a non-technical audience.
+This note explains the results from `notebooks/Data_Modelling/15_modelling_pipeline.ipynb`.
 
 ## What the model names mean
 
