@@ -1,4 +1,4 @@
-.PHONY: pipeline serve clean install
+.PHONY: pipeline serve clean install test
 
 # ── Install pipeline dependencies ────────────────────────────────────────────
 install:
@@ -59,6 +59,10 @@ pipeline: install
 # ── Local Streamlit app ──────────────────────────────────────────────────────
 serve:
 	streamlit run frontend/app.py
+
+# ── Run unit tests ───────────────────────────────────────────────────────────
+test:
+	pytest tests/ -v --tb=short --cov --cov-report=term-missing
 
 # ── Clean generated data ─────────────────────────────────────────────────────
 clean:
