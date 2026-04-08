@@ -223,5 +223,6 @@ venv/
 # notebooks
 .ipynb_checkpoints/
 
-# outputs
+# outputs (keep results for Streamlit deployment)
 outputs/
+!outputs/results/
