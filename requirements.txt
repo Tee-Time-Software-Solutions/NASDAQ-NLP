@@ -1,13 +1,8 @@
-kagglehub
-kaggle
-python-dotenv
-pandas
-numpy
-nltk
-scikit-learn
-statsmodels
-yfinance==0.2.40
-jupyter
-transformers
-torch
-spacy
+# requirements.txt — for Streamlit Community Cloud deployment
+# Only packages needed by the frontend dashboard (reads pre-computed CSVs).
+# Heavy ML libs (torch, transformers, gensim) are excluded — not needed at serve time.
+
+streamlit>=1.32
+pandas>=2.0
+numpy>=1.24
+altair>=5.0

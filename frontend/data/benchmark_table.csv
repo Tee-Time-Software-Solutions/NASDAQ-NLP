@@ -1,0 +1,9 @@
+model,target,n_train,n_test,train_r2,test_r2,oos_r2,wald_p
+Null (mean),car_03,119,69,0.0,-0.0446,0.0,
+Market-only (pre_vol),car_03,119,69,0.0094,-0.0841,-0.0378,
+LM Lexicon OLS,car_03,119,69,0.0139,0.0551,0.0954,0.1952
+LM Lexicon + Controls,car_03,119,69,0.0534,-0.1831,-0.1325,0.1006
+Null (mean),car_01,119,69,0.0,-0.0295,0.0,
+Market-only (pre_vol),car_01,119,69,0.0103,-0.1082,-0.0764,
+LM Lexicon OLS,car_01,119,69,0.018,0.06,0.087,0.1517
+LM Lexicon + Controls,car_01,119,69,0.0709,-0.2084,-0.1738,0.0538
