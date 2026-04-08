@@ -1,0 +1,60 @@
+.DEFAULT_GOAL := help
+.PHONY: help install pipeline notebooks serve lint clean
+
+# ── Python / UV ──────────────────────────────────────────────────────────────
+# UV must be installed:  curl -LsSf https://astral.sh/uv/install.sh | sh
+
+help:          ## Show this help message
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) \
+		| awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2}'
+
+install:       ## Create venv and install all dependencies via UV
+	uv sync
+
+# ── Data pipeline ────────────────────────────────────────────────────────────
+# Runs each pipeline step in order, writing CSVs to outputs/processed/.
+# Re-running is safe — each step overwrites its own output file.
+
+pipeline:      ## Run the full data pipeline (metadata → market → features)
+	@echo "── Step 1: build event metadata ──"
+	uv run python -c "from nasdaq_nlp.data.metadata import build_event_metadata; build_event_metadata()"
+	@echo "── Step 2: download market data + compute returns ──"
+	uv run python -c "from nasdaq_nlp.data.market import build_market_returns; build_market_returns()"
+	@echo "── Step 3: compute market model (OLS α,β), AR, CAR, ΔVol ──"
+	uv run python -c "from nasdaq_nlp.models.market_model import build_event_study; build_event_study()"
+	@echo "── Step 4: lexicon sentiment features ──"
+	uv run python -c "from nasdaq_nlp.features.lexicon import build_lexicon_features; build_lexicon_features()"
+	@echo "── Step 5: n-gram + TF-IDF features ──"
+	uv run python -c "from nasdaq_nlp.features.tfidf import build_tfidf_features; build_tfidf_features()"
+	@echo "── Step 6: Word2Vec document embeddings ──"
+	uv run python -c "from nasdaq_nlp.features.embeddings import build_embedding_features; build_embedding_features()"
+	@echo "── Step 7: FinBERT sentiment (slow — runs transformer) ──"
+	uv run python -c "from nasdaq_nlp.features.finbert import build_finbert_features; build_finbert_features()"
+	@echo ""
+	@echo "✓ Pipeline complete.  Outputs in outputs/processed/"
+
+# ── Notebooks ────────────────────────────────────────────────────────────────
+# Executes all 4 notebooks headlessly; fails loudly if any cell raises.
+
+notebooks:     ## Execute all 4 notebooks headlessly (requires pipeline to run first)
+	uv run jupyter nbconvert --to notebook --execute \
+		--ExecutePreprocessor.timeout=600 \
+		--output-dir notebooks/executed \
+		notebooks/01_data_pipeline.ipynb \
+		notebooks/02_feature_extraction.ipynb \
+		notebooks/03_modeling.ipynb \
+		notebooks/04_results.ipynb
+	@echo "✓ All notebooks executed cleanly."
+
+# ── Frontend ─────────────────────────────────────────────────────────────────
+serve:         ## Launch the Streamlit dashboard (frontend/)
+	uv run streamlit run frontend/app.py
+
+# ── Code quality ─────────────────────────────────────────────────────────────
+lint:          ## Run ruff linter + formatter check on src/
+	uv run ruff check src/
+	uv run ruff format --check src/
+
+format:        ## Auto-fix lint issues and reformat src/
+	uv run ruff check --fix src/
+	uv run ruff format src/

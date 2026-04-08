@@ -1,0 +1,266 @@
+\documentclass[conference]{IEEEtran}
+\IEEEoverridecommandlockouts
+
+\usepackage{cite}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{xcolor}
+
+\begin{document}
+
+\title{Earnings-Text NLP: Sentiment and Expected Stock-Price Impact}
+
+\author{\IEEEauthorblockN{1\textsuperscript{st} Given Name Surname}
+\IEEEauthorblockA{\textit{dept. name of organization (of Aff.)} \\
+\textit{name of organization (of Aff.)}\\
+City, Country \\
+email address or ORCID}
+\and
+\IEEEauthorblockN{2\textsuperscript{nd} Given Name Surname}
+\IEEEauthorblockA{\textit{dept. name of organization (of Aff.)} \\
+\textit{name of organization (of Aff.)}\\
+City, Country \\
+email address or ORCID}
+\and
+\IEEEauthorblockN{3\textsuperscript{rd} Given Name Surname}
+\IEEEauthorblockA{\textit{dept. name of organization (of Aff.)} \\
+\textit{name of organization (of Aff.)}\\
+City, Country \\
+email address or ORCID}
+\and
+\IEEEauthorblockN{4\textsuperscript{th} Given Name Surname}
+\IEEEauthorblockA{\textit{dept. name of organization (of Aff.)} \\
+\textit{name of organization (of Aff.)}\\
+City, Country \\
+email address or ORCID}
+\and
+\IEEEauthorblockN{5\textsuperscript{th} Given Name Surname}
+\IEEEauthorblockA{\textit{dept. name of organization (of Aff.)} \\
+\textit{name of organization (of Aff.)}\\
+City, Country \\
+email address or ORCID}
+\and
+\IEEEauthorblockN{6\textsuperscript{th} Given Name Surname}
+\IEEEauthorblockA{\textit{dept. name of organization (of Aff.)} \\
+\textit{name of organization (of Aff.)}\\
+City, Country \\
+email address or ORCID}
+}
+
+\maketitle
+
+\section{Introduction}
+\label{sec:intro}
+
+Earnings calls are scheduled events in which company executives present financial results and answer questions from analysts. These calls produce large volumes of unstructured text that contain forward-looking statements, assessments of business conditions, and responses to analyst concerns. Because earnings calls occur at a fixed point in the corporate calendar, they offer a natural setting for studying how language relates to investor behavior and stock price movements.
+
+Natural language processing (NLP) has made it increasingly practical to extract structured signals from financial text. Methods ranging from lexicon-based scoring to fine-tuned transformer models can assign sentiment scores to large collections of documents at low cost. However, applying these tools to earnings call transcripts raises several challenges. Financial language is domain-specific, earnings calls mix factual reporting with forward-looking opinion, and the relationship between text sentiment and stock returns is noisy and potentially nonlinear.
+
+This paper investigates whether sentiment extracted from earnings call transcripts can predict short-window market reactions for NASDAQ-listed firms. We focus on a specific hypothesis: that negative sentiment signals are stronger predictors of abnormal returns and volatility changes than positive sentiment signals. This asymmetry hypothesis is motivated by the behavioral finance literature, which documents that investors tend to react more strongly to bad news than to good news.
+
+We apply two complementary sentiment approaches. The first is the Loughran-McDonald financial sentiment lexicon, a domain-adapted word list widely used in accounting and finance research. The second is FinBERT, a transformer model pre-trained on financial text that produces probabilistic sentiment scores at the sentence level. Comparing these two approaches allows us to assess whether more expressive models offer meaningful gains over simpler lexicon methods in this setting.
+
+Our main contributions are as follows. We construct a clean dataset of approximately 1,200 earnings call transcripts linked to post-event return and volatility measures. We evaluate sentiment features against market-only baselines using a time-based train-test split. We test the asymmetry between positive and negative sentiment coefficients using formal statistical tests. Finally, we conduct robustness checks across different event windows, and time periods to assess the stability of our findings.
+
+\section{Literature Review}
+\label{sec:litreview}
+
+Our project focuses on extracting sentiment (and related linguistic signals) from earnings-related financial language and mapping that information to an expected direction of stock-price impact. We build on three related works: (i) a neural approach separating \emph{opinion} vs.\ \emph{fact} sentences while forecasting fundamentals and price movements, (ii) a Transformer-based sentiment approach applied to earnings reports with return prediction experiments, and (iii) an overview of NLP pipelines and challenges in financial sentiment analysis \cite{ref_suzuki2020,ref_schlaubitz2021,ref_omoseebi2023}.
+
+\subsection{Opinion vs.\ fact decomposition for forecasting fundamentals and prices}
+Suzuki et al.\ develop a text-mining pipeline that first classifies analyst-report sentences into \emph{opinion} versus \emph{non-opinion} and then uses these signals for downstream prediction tasks \cite{ref_suzuki2020}. A key finding is that integrating text with structured numeric context (e.g., trend features from prior estimates) improves forecasting of analysts’ net income estimate changes. However, forecasting stock-price movements from the same textual sources is substantially more difficult and can approach random baselines on some targets \cite{ref_suzuki2020}.
+
+\textbf{Implication for our work.} We treat earnings-related language as heterogeneous (e.g., forward-looking opinions vs.\ factual statements) and explicitly evaluate multiple targets/horizons (e.g., short-window abnormal return direction, volatility change, post-earnings drift) while combining text signals with market context features.
+
+\subsection{Transformer-based sentiment from earnings reports and predictive value for returns}
+Schlaubitz applies a fine-tuned Transformer (DistilBERT) to financial text, including earnings reports, and studies links between sentiment/complexity measures and subsequent stock returns \cite{ref_schlaubitz2021}. While sentiment extraction can be strong at the text level, the relationship between sentiment and returns is heterogeneous across firms and not consistently robust under simple linear assumptions; combining sentiment with historical market features can improve predictive performance in nonlinear settings \cite{ref_schlaubitz2021}.
+
+\textbf{Implication for our work.} We frame evaluation around \emph{incremental predictive value}: sentiment features should be judged relative to price-only baselines and in combination with market context, rather than assumed to predict returns on their own.
+
+\subsection{Financial sentiment NLP pipelines and domain challenges}
+Omoseebi et al.\ summarize common NLP pipelines for financial sentiment analysis (data sources, preprocessing, representations such as TF--IDF vs.\ embeddings, and model families from traditional ML to Transformers) and highlight domain-specific challenges such as specialized language and ambiguity \cite{ref_omoseebi2023}.
+
+\textbf{Implication for our work.} We follow a standard pipeline design (acquisition $\rightarrow$ preprocessing $\rightarrow$ representation $\rightarrow$ sentiment modeling $\rightarrow$ evaluation) while using finance-adapted modeling choices and careful target definitions appropriate for earnings-event settings.
+
+\section{Methodology}
+
+\subsection{Data Collection}
+
+We use Thomson Reuters StreetEvents earnings call transcripts for NASDAQ-listed firms from 2016--2020. Each transcript includes:
+
+\begin{itemize}
+    \item Firm ticker and earnings call date
+    \item Presentation section (prepared remarks by executives)
+    \item Q\&A section (questions from analysts and management responses)
+    \item Participant metadata (speaker names and affiliations)
+\end{itemize}
+
+Our final sample contains approximately 1,200 earnings calls from 150 unique firms, concentrated in technology, healthcare, and consumer sectors.
+
+\subsection{Text Preprocessing}
+
+We clean the raw transcripts through the following steps:
+
+\begin{enumerate}
+    \item \textbf{Remove boilerplate}: Delete forward-looking disclaimers, legal notices, operator instructions, and metadata headers
+    \item \textbf{Normalize text}: Convert to lowercase and standardize punctuation while preserving sentence boundaries
+    \item \textbf{Section splitting}: Separate each transcript into Presentation and Q\&A using participant lists
+\end{enumerate}
+
+We keep preprocessing minimal to preserve sentiment-carrying words. We do not remove stopwords or apply stemming.
+
+\subsection{Sentiment Extraction}
+
+We measure sentiment using two complementary approaches:
+
+\subsubsection{Lexicon-Based Sentiment}
+
+We apply the Loughran--McDonald financial sentiment dictionary, which contains words labeled as positive or negative in financial contexts. For each transcript, we calculate:
+
+\begin{align}
+NegRate &= \frac{\text{Number of negative words}}{\text{Total words}} \\
+PosRate &= \frac{\text{Number of positive words}}{\text{Total words}}
+\end{align}
+
+Example negative words: ``loss'', ``decline'', ``risk'', ``uncertain''\\
+Example positive words: ``profit'', ``growth'', ``strong'', ``opportunity''
+
+\subsubsection{Model-Based Sentiment}
+
+As a robustness check, we use FinBERT, a pre-trained transformer model designed for financial text. The process is:
+
+\begin{enumerate}
+    \item Split transcript into sentences using spaCy
+    \item Run FinBERT on each sentence to get positive/negative/neutral probabilities
+    \item Average probabilities across all sentences in the transcript
+\end{enumerate}
+
+This gives us $P(positive)$ and $P(negative)$ for each earnings call.
+
+\subsection{Market Reaction Measures}
+
+We measure market reactions in the days following each earnings call:
+
+\subsubsection{Abnormal Returns}
+
+We calculate cumulative abnormal returns (CAR) over two event windows: [0,1] days and [0,3] days after the call, where day 0 is the call date.
+
+The market model approach:
+\begin{equation}
+R_{stock} = \alpha + \beta \times R_{market} + \epsilon
+\end{equation}
+
+We estimate $\alpha$ and $\beta$ using 100 days of returns before the earnings call (days -120 to -20). Then abnormal return on day $t$ is:
+
+\begin{equation}
+AR_t = R_{stock,t} - (\hat{\alpha} + \hat{\beta} \times R_{market,t})
+\end{equation}
+
+Cumulative abnormal return is simply the sum:
+\begin{equation}
+CAR_{[0,3]} = AR_0 + AR_1 + AR_2 + AR_3
+\end{equation}
+
+\subsubsection{Volatility Change}
+
+We also measure the change in stock volatility before versus after the call:
+\begin{equation}
+\Delta Volatility = \text{Volatility}_{[+1,+10]} - \text{Volatility}_{[-10,-1]}
+\end{equation}
+
+where volatility is the standard deviation of daily returns.
+
+\subsection{Research Question}
+
+\textbf{Question} Are negative sentiment signals stronger predictors of market reactions than positive sentiment signals?
+
+We define "stronger" as having larger coefficient magnitudes and greater statistical significance.
+
+\subsection{Statistical Model}
+
+Our main regression specification is:
+
+\begin{equation}
+Y = \beta_0 + \beta_1 \times Negative + \beta_2 \times Positive + \text{Controls} + \epsilon
+\end{equation}
+
+where:
+\begin{itemize}
+    \item $Y$ = either CAR or volatility change
+    \item $Negative$ = negative sentiment measure (lexicon or FinBERT)
+    \item $Positive$ = positive sentiment measure (lexicon or FinBERT)
+    \item Controls = pre-event volatility, transcript length, year/quarter indicators
+\end{itemize}
+
+\textbf{Testing Asymmetry:} We test if $|\beta_1| > |\beta_2|$ using a Wald test. If true, negative sentiment has stronger market impact than positive sentiment.
+
+\subsection{Baseline Comparisons}
+
+To show that sentiment adds value, we compare multiple models:
+
+\begin{enumerate}
+    \item \textbf{Null model}: No predictors (just the mean)
+    \item \textbf{Market-only}: Only pre-event volatility
+    \item \textbf{Sentiment-only}: Only positive and negative sentiment
+    \item \textbf{Full model}: Sentiment + controls
+\end{enumerate}
+
+We report $R^2$ for each model. If $R^2_{full} > R^2_{market-only}$, sentiment adds explanatory power.
+
+\subsection{Evaluation Strategy}
+
+To avoid overfitting, we split our sample by time:
+
+\begin{itemize}
+    \item \textbf{Training}: 2016--2018 (estimate regression coefficients)
+    \item \textbf{Testing}: 2019--2020 (evaluate predictions)
+\end{itemize}
+
+We report both in-sample and out-of-sample $R^2$ to assess generalization.
+
+\subsection{Robustness Checks}
+
+We test whether our results are stable across:
+
+\begin{enumerate}
+    \item Different event windows ([0,1] vs. [0,3] days)
+    \item Different outcome variables (returns vs. volatility)
+    \item Different transcript sections (Presentation vs. Q\&A)
+    \item Different time periods (2016--2017 vs. 2018--2020)
+    \item Lexicon vs. FinBERT sentiment measures
+\end{enumerate}
+
+If results hold across these variations, we can be confident in our findings.
+
+\subsection{Implementation}
+
+All analysis is conducted in Python using:
+\begin{itemize}
+    \item \textbf{spaCy}: Text preprocessing and tokenization
+    \item \textbf{transformers (Hugging Face)}: FinBERT sentiment classification
+    \item \textbf{pandas}: Data manipulation
+    \item \textbf{scikit-learn/statsmodels}: Regression analysis
+\end{itemize}
+
+Code and processed data will be made available for reproducibility.
+
+\begin{thebibliography}{00}
+
+\bibitem{ref_suzuki2020}
+M. Suzuki, H. Sakaji, K. Izumi, H. Matsushima, and Y. Ishikawa,
+``Forecasting Net Income Estimate and Stock Price Using Text Mining from Economic Reports,''
+\emph{Information}, vol.~11, no.~292, 2020.
+
+\bibitem{ref_schlaubitz2021}
+A. Schlaubitz,
+\emph{Natural Language Processing in Finance: Analysis of Sentiment and Complexity of News and Earnings Reports of Swiss SMEs and their Relevance for Stock Returns}.
+Master's Thesis, Zurich University of Applied Sciences (ZHAW), 2021.
+
+\bibitem{ref_omoseebi2023}
+A. Omoseebi, J. Owen, and Q. Loveth,
+``Natural language processing (NLP) for sentiment analysis in financial markets,''
+2023.
+
+\end{thebibliography}
+
+\end{document}
