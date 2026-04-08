@@ -1,13 +1,4 @@
-kagglehub
-kaggle
-python-dotenv
+streamlit
+plotly
 pandas
-numpy
-nltk
-scikit-learn
 statsmodels
-yfinance==0.2.40
-jupyter
-transformers
-torch
-spacy

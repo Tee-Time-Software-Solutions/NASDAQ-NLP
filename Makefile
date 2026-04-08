@@ -2,6 +2,9 @@
 
 # ── Full data pipeline ───────────────────────────────────────────────────────
 pipeline:
+	@echo "=== Installing pipeline dependencies ==="
+	pip3 install -r requirements-pipeline.txt
+
 	@echo "=== Step 1/6: Downloading Kaggle transcripts ==="
 	python3 scripts/download_data.py
 
