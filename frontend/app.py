@@ -18,11 +18,13 @@ def load_data():
     models = pd.read_csv(RESULTS_DIR / "model_results_car01.csv")
 
     key = ["ticker", "file_name", "event_trading_day_final"]
-    df = events.merge(lex, on=key, how="inner").merge(fin, on=key, how="inner")
-    return df, models
+    df = events.merge(lex, on=key, how="left").merge(fin, on=key, how="left")
+    return df, models, len(events) - len(df.dropna(subset=["neg_rate_lm", "finbert_neg_mean"]))
 
 
-df, models = load_data()
+df, models, missing_count = load_data()
+if missing_count > 0:
+    st.warning(f"{missing_count} events are missing sentiment data and are excluded from sentiment charts.")
 
 tab1, tab2, tab3 = st.tabs(["Overview", "Market Reaction", "Asymmetry"])
 

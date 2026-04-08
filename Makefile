@@ -1,10 +1,11 @@
-.PHONY: pipeline serve clean
+.PHONY: pipeline serve clean install
+
+# ── Install pipeline dependencies ────────────────────────────────────────────
+install:
+	python3 -m pip install -r requirements-pipeline.txt
 
 # ── Full data pipeline ───────────────────────────────────────────────────────
-pipeline:
-	@echo "=== Installing pipeline dependencies ==="
-	pip3 install -r requirements-pipeline.txt
-
+pipeline: install
 	@echo "=== Step 1/6: Downloading Kaggle transcripts ==="
 	python3 scripts/download_data.py
 
@@ -16,7 +17,7 @@ pipeline:
 
 	@echo "=== Step 4/6: Running processing notebooks ==="
 	@# Notebooks use ../data/ relative paths — symlink so they resolve correctly
-	@if [ ! -L notebooks/data ]; then ln -s "$$(pwd)/data" notebooks/data; fi
+	@if [ ! -e notebooks/data ]; then ln -s "$$(pwd)/data" notebooks/data; fi
 	@for nb in \
 		01_validate_event_metadata_final.ipynb \
 		02_validate_market_data.ipynb \
@@ -31,7 +32,7 @@ pipeline:
 		jupyter nbconvert --to notebook --execute \
 			notebooks/Data_Processing/$$nb \
 			--ExecutePreprocessor.timeout=600 \
-			--output /tmp/nb_out.ipynb > /dev/null 2>&1 || \
+			--output /tmp/nb_out.ipynb || \
 			{ echo "  FAILED: $$nb"; exit 1; }; \
 	done
 
@@ -58,3 +59,8 @@ pipeline:
 # ── Local Streamlit app ──────────────────────────────────────────────────────
 serve:
 	streamlit run frontend/app.py
+
+# ── Clean generated data ─────────────────────────────────────────────────────
+clean:
+	rm -rf data/raw data/processed outputs/results
+	rm -f notebooks/data
