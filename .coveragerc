@@ -1,0 +1,7 @@
+[run]
+source = scripts
+
+[report]
+omit =
+    scripts/download_*.py
+    scripts/build_event_metadata_v1.py

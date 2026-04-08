@@ -6,7 +6,6 @@ from pathlib import Path
 from typing import Iterable
 
 import pandas as pd
-from transformers import AutoModelForSequenceClassification, AutoTokenizer, pipeline
 
 
 @dataclass
@@ -51,6 +50,7 @@ def batched(iterable: Iterable[str], batch_size: int) -> Iterable[list[str]]:
 
 
 def build_finbert_pipeline(cfg: FinBertConfig):
+    from transformers import AutoModelForSequenceClassification, AutoTokenizer, pipeline
     tokenizer = AutoTokenizer.from_pretrained(cfg.model_name)
     model = AutoModelForSequenceClassification.from_pretrained(cfg.model_name)
     clf = pipeline(
