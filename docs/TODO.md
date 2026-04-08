@@ -108,3 +108,6 @@
 5. How does this affect investing strategy?
 6. NASDAQ Composite index (^IXIC) --- why did we downloaded this?
 7. What part of the paper has been left behind?
+9. Constrat frontend UI to results data in notebooks
+10. Why we didint use NN for market model 
+11. AI used for enhancemente

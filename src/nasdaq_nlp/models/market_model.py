@@ -184,10 +184,6 @@ def estimate_market_model(panel: pd.DataFrame) -> pd.DataFrame:
         [α, β] = (X'X)^{-1} X'y
     where X = [1, R_market] and y = R_stock over the estimation window.
 
-    We use numpy.linalg.lstsq rather than sklearn/statsmodels here because
-    it is faster and we only need the coefficients (not standard errors) at this stage.
-    Standard errors for the Wald test are computed in regression.py with statsmodels.
-
     Returns
     -------
     pd.DataFrame with columns [event_id, ticker, file_name, event_trading_day, alpha, beta, n_obs]
@@ -211,7 +207,6 @@ def estimate_market_model(panel: pd.DataFrame) -> pd.DataFrame:
         y = est["stock_return"].values
 
         # OLS solution: minimise ||Xb - y||^2
-        # lstsq is numerically stable (uses SVD under the hood)
         coeffs, _, _, _ = lstsq(X, y, rcond=None)
         alpha, beta = coeffs
 
