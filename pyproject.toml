@@ -32,6 +32,7 @@ dependencies = [
     "tqdm>=4.66",
     "streamlit>=1.56.0",
     "altair>=6.0.0",
+    "pydantic>=2.5",
 ]
 
 [project.optional-dependencies]

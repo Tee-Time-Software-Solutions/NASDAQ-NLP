@@ -105,3 +105,6 @@
 2. Find public benchmarks?
 3. Benchmark pipeline duration?
 4. How much of feature extraction are we doing?
+5. How does this affect investing strategy?
+6. NASDAQ Composite index (^IXIC) --- why did we downloaded this?
+7. What part of the paper has been left behind?

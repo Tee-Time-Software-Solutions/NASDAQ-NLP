@@ -96,8 +96,6 @@ def download_stock_prices(
     for ticker in tickers:
         print(f"  → {ticker}", end="", flush=True)
         try:
-            # Use Ticker.history() — more reliable than yf.download() for 1.x
-            # auto_adjust=True: 'Close' is already split/dividend-adjusted
             hist = yf.Ticker(ticker).history(
                 start=start_date,
                 end=end_date,
@@ -112,7 +110,7 @@ def download_stock_prices(
             close["ticker"] = ticker
             # Strip timezone info from index (tz-aware → tz-naive date for CSV compatibility)
             close["date"] = pd.to_datetime(close["date"]).dt.tz_localize(None)
-            dfs.append(close.dropna(subset=["adj_close"]))
+            dfs.append(close.dropna(subset=["adj_close"])) # drop days where stock didnt trade (if any)
             print(f" ✓ ({len(close)} rows)")
         except Exception as exc:
             print(f" ERROR: {exc}")

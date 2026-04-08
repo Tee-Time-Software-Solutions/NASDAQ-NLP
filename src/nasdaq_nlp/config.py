@@ -44,11 +44,11 @@ LOGS_DIR: Path = OUTPUTS_DIR / "logs"
 EVENT_METADATA_PATH: Path = PROCESSED_DIR / "event_metadata.csv" # CSV with metadata on trading day after shareholder meeting occured
  
 # Step 2 — market data: daily stock + index OHLCV
-PRICES_RAW_PATH: Path = PROCESSED_DIR / "prices_raw.csv"
-INDEX_RAW_PATH: Path = PROCESSED_DIR / "nasdaq_index_raw.csv"
-
+PRICES_RAW_PATH: Path = PROCESSED_DIR / "prices_raw.csv" # cleaned yfinance data on price of stock
+INDEX_RAW_PATH: Path = PROCESSED_DIR / "nasdaq_index_raw.csv" # cleaned yfinance data on price of index
+ 
 # Step 2b — returns: daily return columns added
-STOCK_RETURNS_PATH: Path = PROCESSED_DIR / "stock_returns.csv"
+STOCK_RETURNS_PATH: Path = PROCESSED_DIR / "stock_returns.csv" # yfinance downloaded data with percentage change on returns
 INDEX_RETURNS_PATH: Path = PROCESSED_DIR / "index_returns.csv"
 
 # Step 3 — market model + event-study measures
