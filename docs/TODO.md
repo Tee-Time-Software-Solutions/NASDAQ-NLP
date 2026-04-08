@@ -102,3 +102,6 @@
 
 ## QUESTIONBS
 1. How do I run FinBERT?
+2. Find public benchmarks?
+3. Benchmark pipeline duration?
+4. How much of feature extraction are we doing?

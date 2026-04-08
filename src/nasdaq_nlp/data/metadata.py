@@ -105,9 +105,8 @@ _HEADER_DT_RE = re.compile(
 
 
 def parse_header_datetime(raw_text: str) -> datetime | None:
-    """Scan the first 20 lines of a transcript for the date/time line.
-
-    The target line looks like:  "JANUARY 28, 2020 / 10:00PM GMT"
+    """Scan the first lines of the trasncript. Provided dataset
+    always provides datetime at the top
 
     Parameters
     ----------
@@ -138,22 +137,19 @@ def parse_header_datetime(raw_text: str) -> datetime | None:
         elif ampm == "AM" and hour == 12:
             hour = 0
 
-        try:
-            dt_utc = datetime(
-                year=int(m.group("year")),
-                month=month_num,
-                day=int(m.group("day")),
-                hour=hour,
-                minute=minute,
-                tzinfo=timezone.utc,   # header says GMT = UTC
-            )
-        except ValueError:
-            continue  # bad date values — skip
+
+        dt_utc = datetime(
+            year=int(m.group("year")),
+            month=month_num,
+            day=int(m.group("day")),
+            hour=hour,
+            minute=minute,
+            tzinfo=timezone.utc,   # header says GMT = UTC
+        )
 
         return dt_utc
 
-    return None   # header not found (fallback: use filename date at market open)
-
+    raise Exception("Could not extract datetime for given file")
 
 # ---------------------------------------------------------------------------
 # Event trading day assignment
@@ -194,10 +190,10 @@ def assign_event_trading_day(call_dt_et: datetime) -> datetime:
     after_close = call_dt_et.hour >= MARKET_CLOSE_HOUR_ET
 
     if is_weekend or is_holiday or after_close:
-        # Market is closed at the time of the call — next open day
+        # Market is closed 
         return next_business_day(call_dt_et)
     else:
-        # Market is open — same day reacts
+        # Market is open 
         return call_date
 
 
@@ -211,7 +207,7 @@ def _record_to_metadata_row(record: TranscriptRecord) -> dict:
     This function reads the file if raw_text is empty, extracts the header
     datetime, converts to Eastern, and assigns the event trading day.
     """
-    # Ensure raw text is loaded (lazy loading)
+    # Read content of the record (lazy loading)
     if not record.raw_text:
         record.load()
 
@@ -221,8 +217,6 @@ def _record_to_metadata_row(record: TranscriptRecord) -> dict:
         "file_path": str(record.file_path),
         "year": record.year,
         "quarter": _QUARTER_MAP[
-            # Use filename month as the call's calendar month
-            # (we map the 3-letter month string to a number)
             _MONTH_MAP.get(record.month_str.upper(), 1)
         ],
     }
@@ -230,26 +224,13 @@ def _record_to_metadata_row(record: TranscriptRecord) -> dict:
     # --- Parse the call datetime from the file header ---
     call_dt_utc = parse_header_datetime(record.raw_text)
 
-    if call_dt_utc is not None:
-        # Convert from UTC to US Eastern (ZoneInfo handles DST automatically)
-        call_dt_et = call_dt_utc.astimezone(EASTERN)
-        row["call_datetime_gmt"] = call_dt_utc.strftime("%Y-%m-%d %H:%M:%S")
-        row["call_datetime_et"] = call_dt_et.strftime("%Y-%m-%d %H:%M:%S")
-        row["call_time_et"] = call_dt_et.strftime("%H:%M")
-        row["after_market_close"] = call_dt_et.hour >= MARKET_CLOSE_HOUR_ET
-        event_day = assign_event_trading_day(call_dt_et)
-    else:
-        # Fallback: no parseable header → use the filename date at midday ET
-        # (we assume a midday call, so same-day event)
-        row["call_datetime_gmt"] = None
-        row["call_datetime_et"] = None
-        row["call_time_et"] = None
-        row["after_market_close"] = False
-        # Construct a naive ET datetime from filename fields
-        month_num = _MONTH_MAP.get(record.month_str.upper(), 1)
-        fallback_dt = datetime(record.year, month_num, record.day, 12, 0,
-                              tzinfo=EASTERN)   # zoneinfo: pass tzinfo directly
-        event_day = assign_event_trading_day(fallback_dt)
+    # Convert from UTC to US Eastern (ZoneInfo handles DST automatically)
+    call_dt_et = call_dt_utc.astimezone(EASTERN)
+    row["call_datetime_gmt"] = call_dt_utc.strftime("%Y-%m-%d %H:%M:%S")
+    row["call_datetime_et"] = call_dt_et.strftime("%Y-%m-%d %H:%M:%S")
+    row["call_time_et"] = call_dt_et.strftime("%H:%M")
+    row["after_market_close"] = call_dt_et.hour >= MARKET_CLOSE_HOUR_ET
+    event_day = assign_event_trading_day(call_dt_et)
 
     row["event_trading_day"] = event_day.strftime("%Y-%m-%d")
     return row
@@ -270,7 +251,7 @@ def build_event_metadata(
     """
     ensure_output_dirs()
 
-    records = scan_transcripts(dataset_dir, eager=False)
+    records = scan_transcripts(dataset_dir)
     print(f"Found {len(records)} transcripts across {len({r.ticker for r in records})} tickers")
 
     rows = []

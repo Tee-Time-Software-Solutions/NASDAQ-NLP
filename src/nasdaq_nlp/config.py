@@ -41,8 +41,8 @@ LOGS_DIR: Path = OUTPUTS_DIR / "logs"
 # ---------------------------------------------------------------------------
 
 # Step 1 — event metadata: one row per earnings call, with the trading day
-EVENT_METADATA_PATH: Path = PROCESSED_DIR / "event_metadata.csv"
-
+EVENT_METADATA_PATH: Path = PROCESSED_DIR / "event_metadata.csv" # CSV with metadata on trading day after shareholder meeting occured
+ 
 # Step 2 — market data: daily stock + index OHLCV
 PRICES_RAW_PATH: Path = PROCESSED_DIR / "prices_raw.csv"
 INDEX_RAW_PATH: Path = PROCESSED_DIR / "nasdaq_index_raw.csv"

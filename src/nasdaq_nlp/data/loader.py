@@ -10,6 +10,8 @@ from pathlib import Path
 
 from nasdaq_nlp.config import DATASET_DIR
 
+import warnings
+
 
 # *** DATA STRUCTURE ***
 
@@ -61,8 +63,7 @@ class TranscriptRecord:
 
 # *** PARSING ***
 
-# Expected filename pattern:  YYYY-Mon-DD-TICKER.txt
-# Examples: 2020-Jan-28-AAPL.txt, 2019-Oct-24-GOOGL.txt
+# Expected filename pattern (e.g., 2020-Jan-28-AAPL.txt, 2019-Oct-24-GOOGL.txt)
 _FILENAME_RE = re.compile(
     r"^(?P<year>\d{4})-(?P<month>[A-Za-z]{3})-(?P<day>\d{1,2})-(?P<ticker>[A-Z]+)\.txt$"
 )
@@ -83,7 +84,8 @@ def parse_filename(file_name: str) -> dict | None:
     """
     m = _FILENAME_RE.match(file_name)
     if m is None:
-        return None  # skip non-matching files (e.g. .DS_Store, README.md)
+        warnings.warn(f"Filename: {file_name} doesnt have title structure of transcript. See example: 2020-Jan-28-AAPL.txt ")
+        return 
     return {
         "year": int(m.group("year")),
         "month_str": m.group("month").capitalize(),   # normalise e.g. 'jan' → 'Jan'
@@ -92,14 +94,10 @@ def parse_filename(file_name: str) -> dict | None:
     }
 
 
-# ---------------------------------------------------------------------------
-# Main scanner
-# ---------------------------------------------------------------------------
+# *** SCANNER ***
 
 def scan_transcripts(
-    dataset_dir: Path = DATASET_DIR,
-    *,
-    eager: bool = False,
+    dataset_dir: Path = DATASET_DIR
 ) -> list[TranscriptRecord]:
     """Walk dataset_dir and return one TranscriptRecord per .txt file found.
 
@@ -111,10 +109,6 @@ def scan_transcripts(
     ----------
     dataset_dir : Path
         Root directory to scan.  Defaults to DATASET_DIR from config.py.
-    eager : bool
-        If True, read every transcript into memory immediately.
-        If False (default), raw_text is left empty; call record.load() when needed.
-        Eager mode is convenient for small corpora but uses more RAM.
 
     Returns
     -------
@@ -124,12 +118,12 @@ def scan_transcripts(
     if not dataset_dir.exists():
         raise FileNotFoundError(
             f"Dataset directory not found: {dataset_dir}\n"
-            "Make sure dataset/Transcripts/ exists relative to the project root."
+            "Make sure dataset/Transcripts/ exists"
         )
 
     records: list[TranscriptRecord] = []
 
-    # Iterate over ticker subdirectories (e.g. AAPL/, AMZN/, …)
+    # Iterate over subdirectories of 'Transcripts' (e.g. AAPL/, AMZN/, …)
     for ticker_dir in sorted(dataset_dir.iterdir()):
         if not ticker_dir.is_dir():
             continue  # skip stray files at the top level
@@ -138,7 +132,7 @@ def scan_transcripts(
         for txt_file in sorted(ticker_dir.glob("*.txt")):
             fields = parse_filename(txt_file.name)
             if fields is None:
-                # Skip files that don't match YYYY-Mon-DD-TICKER.txt
+                warnings.warn(f"Filename: {txt_file.name} doesnt have title structure of transcript. See example: 2020-Jan-28-AAPL.txt ")
                 continue
 
             record = TranscriptRecord(
@@ -149,9 +143,6 @@ def scan_transcripts(
                 file_name=txt_file.name,
                 file_path=txt_file.resolve(),
             )
-
-            if eager:
-                record.load()
 
             records.append(record)
 
@@ -165,14 +156,7 @@ def scan_transcripts(
 # ---------------------------------------------------------------------------
 
 def transcripts_by_ticker(records: list[TranscriptRecord]) -> dict[str, list[TranscriptRecord]]:
-    """Group a list of TranscriptRecords by ticker symbol.
-
-    Example
-    -------
-    >>> recs = scan_transcripts()
-    >>> by_ticker = transcripts_by_ticker(recs)
-    >>> len(by_ticker['AAPL'])   # → number of AAPL earnings calls
-    """
+    """Group a list of TranscriptRecords by ticker symbol."""
     groups: dict[str, list[TranscriptRecord]] = {}
     for rec in records:
         groups.setdefault(rec.ticker, []).append(rec)
