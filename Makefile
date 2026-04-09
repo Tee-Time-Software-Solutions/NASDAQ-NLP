@@ -1,4 +1,7 @@
-.PHONY: pipeline serve clean install test
+.PHONY: pipeline serve clean install test all
+
+# ── Run everything: pipeline then serve ──────────────────────────────────────
+all: pipeline serve
 
 # ── Install pipeline dependencies ────────────────────────────────────────────
 install:
