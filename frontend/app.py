@@ -139,7 +139,7 @@ with tab1:
     display.columns = ["Specification", "Target", "Features", "Train R²", "Test R²"]
     display["Train R²"] = display["Train R²"].map("{:.4f}".format)
     display["Test R²"] = display["Test R²"].map("{:.4f}".format)
-    st.dataframe(display, use_container_width=True, hide_index=True)
+    st.dataframe(display, width="stretch", hide_index=True)
 
     st.markdown("---")
     st.subheader("Coefficient Highlights")
@@ -167,7 +167,7 @@ with tab1:
             barmode="group",
             title="Sentiment Coefficients Across Specifications",
         )
-        st.plotly_chart(fig_coef, use_container_width=True)
+        st.plotly_chart(fig_coef, width="stretch")
 
     st.subheader("Dataset Summary")
     col1, col2, col3 = st.columns(3)
@@ -193,7 +193,7 @@ with tab2:
         labels={"CAR_01": "Cumulative Abnormal Return [0,1]"},
     )
     fig_hist.add_vline(x=0, line_dash="dash", line_color="grey")
-    st.plotly_chart(fig_hist, use_container_width=True)
+    st.plotly_chart(fig_hist, width="stretch")
 
     st.subheader("CAR[0,1] by Ticker")
     fig_box = px.box(
@@ -204,7 +204,7 @@ with tab2:
         title="CAR[0,1] Box Plot by Ticker",
         labels={"CAR_01": "Cumulative Abnormal Return [0,1]"},
     )
-    st.plotly_chart(fig_box, use_container_width=True)
+    st.plotly_chart(fig_box, width="stretch")
 
 # ── Tab 3: Asymmetry ────────────────────────────────────────────────────────
 with tab3:
@@ -240,7 +240,7 @@ with tab3:
             labels={neg_col: neg_label, "CAR_01": "CAR[0,1]"},
             opacity=0.7,
         )
-        st.plotly_chart(fig_neg, use_container_width=True)
+        st.plotly_chart(fig_neg, width="stretch")
 
     with col_right:
         fig_pos = px.scatter(
@@ -253,7 +253,7 @@ with tab3:
             labels={pos_col: pos_label, "CAR_01": "CAR[0,1]"},
             opacity=0.7,
         )
-        st.plotly_chart(fig_pos, use_container_width=True)
+        st.plotly_chart(fig_pos, width="stretch")
 
     st.markdown("---")
     st.subheader("Asymmetry Test (Wald)")
