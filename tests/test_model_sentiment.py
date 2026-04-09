@@ -1,15 +1,15 @@
-import pytest
-import pandas as pd
-import numpy as np
-
 import sys
 from pathlib import Path
+
+import pytest
+import numpy as np
+import pandas as pd
 
 # The modelling scripts live in notebooks/Data_Modelling/ and use numeric prefixes,
 # so we import them by manipulating sys.path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "notebooks" / "Data_Modelling"))
 
-import importlib
+import importlib  # noqa: E402
 
 model_mod = importlib.import_module("12_model_sentiment_vs_market")
 time_split = model_mod.time_split

@@ -161,4 +161,3 @@ if __name__ == "__main__":
     if model_name:
         FinBertConfig.model_name = model_name  # type: ignore[attr-defined]
     main()
-

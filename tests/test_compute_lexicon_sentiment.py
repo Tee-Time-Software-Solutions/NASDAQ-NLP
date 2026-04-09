@@ -1,7 +1,6 @@
 import pytest
 import pandas as pd
 from pathlib import Path
-from unittest.mock import patch
 
 from scripts.compute_lexicon_sentiment import (
     load_events,

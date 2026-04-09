@@ -1,11 +1,13 @@
 import pytest
+from unittest.mock import patch, MagicMock
+
 import pandas as pd
-from pathlib import Path
 
 from scripts.compute_finbert_sentiment import (
     simple_sentence_split,
     batched,
     aggregate_probs,
+    main,
     FinBertConfig,
     load_events,
     read_transcript,
@@ -62,8 +64,12 @@ class TestBatched:
 class TestAggregateProbs:
     def test_standard_scores(self):
         scores = [
-            [{"label": "positive", "score": 0.8}, {"label": "negative", "score": 0.1}, {"label": "neutral", "score": 0.1}],
-            [{"label": "positive", "score": 0.2}, {"label": "negative", "score": 0.7}, {"label": "neutral", "score": 0.1}],
+            [{"label": "positive", "score": 0.8},
+             {"label": "negative", "score": 0.1},
+             {"label": "neutral", "score": 0.1}],
+            [{"label": "positive", "score": 0.2},
+             {"label": "negative", "score": 0.7},
+             {"label": "neutral", "score": 0.1}],
         ]
         result = aggregate_probs(scores)
         assert result["finbert_pos_mean"] == pytest.approx(0.5)
@@ -78,14 +84,15 @@ class TestAggregateProbs:
 
     def test_single_sentence(self):
         scores = [
-            [{"label": "positive", "score": 0.6}, {"label": "negative", "score": 0.3}, {"label": "neutral", "score": 0.1}],
+            [{"label": "positive", "score": 0.6},
+             {"label": "negative", "score": 0.3},
+             {"label": "neutral", "score": 0.1}],
         ]
         result = aggregate_probs(scores)
         assert result["finbert_pos_mean"] == pytest.approx(0.6)
         assert result["finbert_neg_mean"] == pytest.approx(0.3)
 
     def test_dict_format(self):
-        # Handles older transformers format where each item is a dict
         scores = [
             {"label": "positive", "score": 0.9},
             {"label": "negative", "score": 0.1},
@@ -144,3 +151,95 @@ class TestReadTranscript:
         f.write_bytes(b"Hello \xff world")
         result = read_transcript(f)
         assert "Hello" in result
+
+
+class TestMain:
+    def _setup_data(self, tmp_path, transcripts=None):
+        """Create events CSV and transcript files in tmp_path."""
+        processed = tmp_path / "data" / "processed"
+        processed.mkdir(parents=True)
+
+        if transcripts is None:
+            transcripts = [("AAPL", "t.txt", "2016-01-27",
+                            "Revenue grew. Profits strong. Risk declined.")]
+
+        rows = []
+        for ticker, fname, date, text in transcripts:
+            tf = tmp_path / fname
+            tf.write_text(text)
+            rows.append(f"{ticker},{fname},{date},{tf}")
+
+        events_csv = processed / "event_study_dataset.csv"
+        events_csv.write_text(
+            "ticker,file_name,event_trading_day_final,file_path\n"
+            + "\n".join(rows) + "\n"
+        )
+        return processed
+
+    def test_processes_events_and_saves(self, tmp_path):
+        processed = self._setup_data(tmp_path)
+
+        fake_scores = [
+            [{"label": "positive", "score": 0.7},
+             {"label": "negative", "score": 0.2},
+             {"label": "neutral", "score": 0.1}],
+        ]
+        mock_clf = MagicMock(return_value=fake_scores)
+
+        with patch(
+            "scripts.compute_finbert_sentiment.build_finbert_pipeline",
+            return_value=mock_clf,
+        ), patch(
+            "scripts.compute_finbert_sentiment.Path.resolve",
+            return_value=tmp_path / "scripts" / "compute_finbert_sentiment.py",
+        ):
+            main()
+
+        result = pd.read_csv(processed / "finbert_sentiment_features.csv")
+        assert len(result) == 1
+        assert result.iloc[0]["ticker"] == "AAPL"
+        assert "finbert_pos_mean" in result.columns
+        assert "finbert_neg_mean" in result.columns
+
+    def test_no_events_raises(self, tmp_path):
+        processed = tmp_path / "data" / "processed"
+        processed.mkdir(parents=True)
+        events_csv = processed / "event_study_dataset.csv"
+        events_csv.write_text(
+            "ticker,file_name,event_trading_day_final,file_path\n"
+        )
+
+        with patch(
+            "scripts.compute_finbert_sentiment.build_finbert_pipeline",
+        ), patch(
+            "scripts.compute_finbert_sentiment.Path.resolve",
+            return_value=tmp_path / "scripts" / "compute_finbert_sentiment.py",
+        ):
+            with pytest.raises(RuntimeError, match="No events found"):
+                main()
+
+    def test_missing_transcript_skipped(self, tmp_path):
+        processed = tmp_path / "data" / "processed"
+        processed.mkdir(parents=True)
+        events_csv = processed / "event_study_dataset.csv"
+        events_csv.write_text(
+            "ticker,file_name,event_trading_day_final,file_path\n"
+            "AAPL,t.txt,2016-01-27,/nonexistent/path.txt\n"
+        )
+
+        mock_clf = MagicMock()
+
+        with patch(
+            "scripts.compute_finbert_sentiment.build_finbert_pipeline",
+            return_value=mock_clf,
+        ), patch(
+            "scripts.compute_finbert_sentiment.Path.resolve",
+            return_value=tmp_path / "scripts" / "compute_finbert_sentiment.py",
+        ):
+            main()
+
+        output = processed / "finbert_sentiment_features.csv"
+        assert output.exists()
+        # Empty DataFrame produces a CSV with no data rows
+        content = output.read_text()
+        assert content.strip() == ""

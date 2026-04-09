@@ -2,7 +2,6 @@ import pandas as pd
 import numpy as np
 from pathlib import Path
 import statsmodels.api as sm
-from sklearn.model_selection import train_test_split
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -97,6 +96,7 @@ def main() -> None:
                 "X": ",".join(spec["X"]),
                 "train_r2": r2_train,
                 "test_r2": r2_test,
+                "const": model.params.get("const", pd.NA),
                 "beta_neg": model.params.get("neg_rate_lm", pd.NA),
                 "beta_pos": model.params.get("pos_rate_lm", pd.NA),
                 "beta_finbert_neg": model.params.get("finbert_neg_mean", pd.NA),
@@ -114,4 +114,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
