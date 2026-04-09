@@ -56,14 +56,14 @@ MARKET_MODEL_PATH: Path = PROCESSED_DIR / "market_model.csv"        # α, β per
 EVENT_STUDY_PATH: Path = PROCESSED_DIR / "event_study_dataset.csv"  # AR, CAR, ΔVol
 
 # Step 4 — lexicon sentiment
-LEXICON_FEATURES_PATH: Path = PROCESSED_DIR / "lexicon_features.csv"
+LEXICON_FEATURES_PATH: Path = PROCESSED_DIR / "lexicon_features.csv" # lexicon features csv
 
 # Step 5 — TF-IDF feature matrix (saved as CSV for small corpora)
-TFIDF_FEATURES_PATH: Path = PROCESSED_DIR / "tfidf_features.csv"
+TFIDF_FEATURES_PATH: Path = PROCESSED_DIR / "tfidf_features.csv" # csv for tf-idf
 
 # Step 6 — Word2Vec document embeddings
 EMBEDDINGS_PATH: Path = PROCESSED_DIR / "doc_embeddings.csv"
-WORD2VEC_MODEL_PATH: Path = PROCESSED_DIR / "word2vec.model"  # gensim binary
+WORD2VEC_MODEL_PATH: Path = PROCESSED_DIR / "word2vec.model"  # gensim binary of word2vec trained model
 
 # Step 7 — FinBERT sentiment
 FINBERT_FEATURES_PATH: Path = PROCESSED_DIR / "finbert_features.csv"

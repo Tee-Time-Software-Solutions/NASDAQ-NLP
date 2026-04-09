@@ -1,5 +1,5 @@
 .DEFAULT_GOAL := help
-.PHONY: help install pipeline notebooks serve lint clean
+.PHONY: help install pipeline finbert notebooks serve lint clean format
 
 # ── Python / UV ──────────────────────────────────────────────────────────────
 # UV must be installed:  curl -LsSf https://astral.sh/uv/install.sh | sh
@@ -32,6 +32,38 @@ pipeline:      ## Run the full data pipeline (metadata → market → features)
 	uv run python -c "from nasdaq_nlp.features.finbert import build_finbert_features; build_finbert_features()"
 	@echo ""
 	@echo "✓ Pipeline complete.  Outputs in outputs/processed/"
+
+ect-pipeline:  ## Import cleaned_ECTs dataset and run full pipeline on combined data
+	@echo "── Step 1: build ECT event metadata (resolves event dates via yfinance) ──"
+	uv run python -c "from nasdaq_nlp.data.ect_loader import build_ect_metadata; build_ect_metadata()"
+	@echo "── Step 2: merge with original metadata → combined_event_metadata.csv ──"
+	uv run python -c "from nasdaq_nlp.data.ect_loader import build_combined_metadata; build_combined_metadata()"
+	@echo "── Step 3: download market data for all tickers + indices ──"
+	uv run python -c "from pathlib import Path; from nasdaq_nlp.data.market import build_market_returns; build_market_returns(Path('outputs/processed/combined_event_metadata.csv'))"
+	@echo "── Step 4: compute market model + CAR for all events ──"
+	uv run python -c "from pathlib import Path; from nasdaq_nlp.models.market_model import build_event_study; from nasdaq_nlp.config import EVENT_STUDY_PATH, STOCK_RETURNS_PATH, INDEX_RETURNS_PATH, MARKET_MODEL_PATH; build_event_study(Path('outputs/processed/combined_event_metadata.csv'), STOCK_RETURNS_PATH, INDEX_RETURNS_PATH, MARKET_MODEL_PATH, EVENT_STUDY_PATH)"
+	@echo "── Step 5: lexicon features (re-run on all events) ──"
+	uv run python -c "from nasdaq_nlp.features.lexicon import build_lexicon_features; build_lexicon_features()"
+	@echo "── Step 6: TF-IDF features ──"
+	uv run python -c "from nasdaq_nlp.features.tfidf import build_tfidf_features; build_tfidf_features()"
+	@echo "── Step 7: Word2Vec embeddings ──"
+	uv run python -c "from nasdaq_nlp.features.embeddings import build_embedding_features; build_embedding_features()"
+	@echo ""
+	@echo "✓ ECT pipeline complete. Run notebooks/03 and notebooks/04 to see updated results."
+
+finbert:       ## Run FinBERT feature extraction (slow — ~15-30 min on CPU)
+	@echo "── FinBERT: scoring 188 transcripts ──"
+	@echo "   Progress logs stream to stdout. Kill safely — resumes from checkpoint."
+	uv run python -c "from nasdaq_nlp.features.finbert import build_finbert_features; build_finbert_features()"
+	@echo "✓ FinBERT complete. Output: outputs/processed/finbert_features.csv"
+
+finbert-bg:    ## Run FinBERT in background, streaming logs to outputs/logs/finbert.log
+	@echo "Starting FinBERT in background → outputs/logs/finbert.log"
+	@mkdir -p outputs/logs
+	nohup uv run python -c \
+		"from nasdaq_nlp.features.finbert import build_finbert_features; build_finbert_features()" \
+		> outputs/logs/finbert.log 2>&1 &
+	@echo "PID: $$!  —  tail -f outputs/logs/finbert.log"
 
 # ── Notebooks ────────────────────────────────────────────────────────────────
 # Executes all 4 notebooks headlessly; fails loudly if any cell raises.

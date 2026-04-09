@@ -121,7 +121,7 @@ def build_tfidf_matrix(
 # Top terms per ticker (for visualisation in notebook 02)
 # ---------------------------------------------------------------------------
 
-def top_tfidf_terms_by_ticker(
+def  top_tfidf_terms_by_ticker(
     events: pd.DataFrame,
     vectorizer: TfidfVectorizer,
     X: np.ndarray,

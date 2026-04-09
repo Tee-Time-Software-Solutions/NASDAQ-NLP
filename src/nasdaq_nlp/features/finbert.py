@@ -50,6 +50,7 @@ FinBERT on CPU with 188 transcripts (each ~8000 tokens → ~500 sentences) takes
 from __future__ import annotations
 
 import re
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterator
@@ -246,9 +247,12 @@ def score_transcript(
 
     # Process in batches (avoids OOM on long transcripts)
     all_scores = []
-    for batch in batch_iter(sentences, cfg.batch_size):
+    n_batches = (len(sentences) + cfg.batch_size - 1) // cfg.batch_size
+    for b_idx, batch in enumerate(batch_iter(sentences, cfg.batch_size), start=1):
         batch_scores = clf(batch)
         all_scores.extend(batch_scores)
+        if n_batches > 3:  # only log batch progress for long transcripts
+            print(f"    batch {b_idx}/{n_batches}", end="\r", flush=True)
 
     return aggregate_sentence_scores(all_scores)
 
@@ -299,14 +303,28 @@ def build_finbert_features(
 
     rows = []
     total = len(events_todo)
+    run_start = time.time()
+    elapsed_times: list[float] = []
+
     for i, (_, event) in enumerate(events_todo.iterrows(), start=1):
+        t0 = time.time()
+
         file_path = Path(event["file_path"])
         if not file_path.is_file():
             print(f"  WARN: {file_path.name} not found — skipping")
             continue
 
         raw_text = file_path.read_text(encoding="utf-8", errors="ignore")
+
+        # Count sentences before scoring so we can log them
+        from nasdaq_nlp.preprocessing.text import strip_header, strip_boilerplate_lines as _sbp
+        _cleaned = strip_header(raw_text)
+        _cleaned = _sbp(_cleaned)
+        n_sentences = len(split_sentences(_cleaned))
+
         scores = score_transcript(raw_text, clf, cfg)
+        elapsed = time.time() - t0
+        elapsed_times.append(elapsed)
 
         rows.append({
             "ticker": event["ticker"],
@@ -315,14 +333,24 @@ def build_finbert_features(
             **scores,
         })
 
-        # Progress + incremental save every 10 events (in case of interruption)
+        # ETA: mean time per transcript × remaining
+        avg_t = sum(elapsed_times) / len(elapsed_times)
+        eta_s = avg_t * (total - i)
+        eta_str = f"{int(eta_s // 60)}m{int(eta_s % 60):02d}s"
+        total_elapsed = time.time() - run_start
+        print(
+            f"  [{i:>3}/{total}] {event['ticker']:<5} {event['file_name']:<40} "
+            f"{n_sentences:>4} sentences  {elapsed:.1f}s/transcript  "
+            f"elapsed {int(total_elapsed//60)}m{int(total_elapsed%60):02d}s  ETA {eta_str}  "
+            f"pos={scores['finbert_pos_mean']:.3f} neg={scores['finbert_neg_mean']:.3f} "
+            f"neu={scores['finbert_neu_mean']:.3f}"
+        )
+
+        # Incremental save every 10 events (resume-safe if process is killed)
         if i % 10 == 0 or i == total:
-            print(f"  [{i}/{total}] {event['ticker']} {event['file_name']}")
-            # Save incrementally (append new rows to existing)
-            checkpoint = pd.concat(
-                [existing, pd.DataFrame(rows)], ignore_index=True
-            )
+            checkpoint = pd.concat([existing, pd.DataFrame(rows)], ignore_index=True)
             checkpoint.to_csv(output_path, index=False)
+            print(f"  ✓ checkpoint saved ({len(checkpoint)} rows → {output_path.name})")
 
     # Final save
     result = pd.concat([existing, pd.DataFrame(rows)], ignore_index=True)

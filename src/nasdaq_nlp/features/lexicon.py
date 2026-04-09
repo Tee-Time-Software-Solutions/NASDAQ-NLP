@@ -9,10 +9,12 @@ For example, "liability" is neutral in everyday speech but strongly negative
 in financial filings.
 
 Loughran and McDonald (2011, Journal of Finance) manually reviewed 10-K filings
-and built a dictionary of ~2,700 words classified as:
-    Negative, Positive, Uncertainty, Litigious, Constraining, Superfluous
+and built a dictionary of words classified into multiple categories (Negative,
+Positive, Uncertainty, Litigious, Strong_Modal, Weak_Modal, Constraining).
 
-We use only Positive and Negative for our asymmetry hypothesis.
+We use only Positive and Negative because the research question is specifically
+about directional sentiment asymmetry (|β_neg| > |β_pos|). The other categories
+have no direct theoretical link to CAR and are discarded.
 
 MATH (what we compute per transcript)
 ---------------------------------------
@@ -32,12 +34,7 @@ THE ASYMMETRY HYPOTHESIS: |β1| > |β2|
 
 FULL DICTIONARY
 ----------------
-The full LM dictionary CSV can be downloaded free from:
-    https://sraf.nd.edu/loughranmcdonald-master-dictionary/
-
-If not found, this module falls back to a built-in mini-dictionary that
-captures the most common financial sentiment words. For academic research
-quality, always use the full dictionary.
+Expected at: dataset/Loughran-McDonald_MasterDictionary_1993-2025.csv
 """
 
 from __future__ import annotations
@@ -59,11 +56,8 @@ from nasdaq_nlp.preprocessing.text import preprocess_transcript
 # Dictionary loader
 # ---------------------------------------------------------------------------
 
-# Path where the full LM CSV might live (optional — falls back to mini-dict)
-_LM_CSV_CANDIDATES = [
-    Path(__file__).parents[3] / "dataset" / "LoughranMcDonald_MasterDictionary.csv",
-    Path(__file__).parents[3] / "dataset" / "LM_Master_Dictionary.csv",
-]
+# Path to the LM master dictionary CSV in the dataset folder
+_LM_CSV_PATH = Path(__file__).parents[3] / "dataset" / "Loughran-McDonald_MasterDictionary_1993-2025.csv"
 
 
 def load_lm_dictionary(csv_path: Path | None = None) -> tuple[set[str], set[str]]:
@@ -72,74 +66,33 @@ def load_lm_dictionary(csv_path: Path | None = None) -> tuple[set[str], set[str]
     Parameters
     ----------
     csv_path : Path | None
-        Explicit path to the LM CSV. If None, tries standard candidate paths.
-        If still not found, uses the built-in mini-dictionary.
+        Explicit path to the LM CSV. If None, uses the default dataset location.
 
     Returns
     -------
     (pos_words, neg_words) — both lowercase sets of strings.
     """
-    # Try caller-provided path first, then standard locations
-    search_paths = [csv_path] + _LM_CSV_CANDIDATES if csv_path else _LM_CSV_CANDIDATES
+    path = csv_path or _LM_CSV_PATH
 
-    for path in search_paths:
-        if path is not None and path.is_file():
-            lm = pd.read_csv(path)
+    if not path.is_file():
+        raise FileNotFoundError(
+            f"LM dictionary not found at {path}.\n"
+            "Download from: https://sraf.nd.edu/loughranmcdonald-master-dictionary/\n"
+            "and place it at: dataset/Loughran-McDonald_MasterDictionary_1993-2025.csv"
+        )
 
-            # LM CSV has a 'Word' column and numeric columns 'Negative', 'Positive'
-            # (non-zero value = belongs to that category)
-            for col in ("Word", "Positive", "Negative"):
-                if col not in lm.columns:
-                    raise ValueError(f"Expected column '{col}' in LM dictionary at {path}")
+    lm = pd.read_csv(path)
 
-            lm["Word"] = lm["Word"].astype(str).str.lower()
-            pos_words = set(lm.loc[lm["Positive"] > 0, "Word"])
-            neg_words = set(lm.loc[lm["Negative"] > 0, "Word"])
-            print(f"Loaded full LM dictionary from {path}: "
-                  f"{len(pos_words)} positive, {len(neg_words)} negative words")
-            return pos_words, neg_words
+    # The CSV has a 'Word' column and numeric category columns.
+    # Non-zero value = the word belongs to that category.
+    for col in ("Word", "Positive", "Negative"):
+        if col not in lm.columns:
+            raise ValueError(f"Expected column '{col}' in LM dictionary at {path}")
 
-    # -----------------------------------------------------------------------
-    # Fallback: built-in mini-dictionary
-    # The most common high-frequency financial sentiment words, sufficient for
-    # a 188-transcript corpus but less precise than the full 2,700-word list.
-    # -----------------------------------------------------------------------
-    print("LM dictionary CSV not found — using built-in mini-dictionary.")
-    print("Download the full dictionary from: https://sraf.nd.edu/loughranmcdonald-master-dictionary/")
-
-    neg_words = {
-        # Loss / decline
-        "loss", "losses", "decline", "declines", "declining", "decreased",
-        "decrease", "decreases", "deteriorate", "deterioration",
-        # Risk / uncertainty
-        "risk", "risks", "uncertain", "uncertainty", "uncertainties",
-        "unpredictable", "volatile", "volatility",
-        # Failure / problems
-        "fail", "failed", "failure", "failures", "impair", "impairment",
-        "weak", "weakness", "weakening", "concern", "concerns", "worried",
-        # Negative outcomes
-        "adverse", "adversely", "headwind", "headwinds", "downturn",
-        "downside", "slowdown", "shortfall", "disappointing", "disappoints",
-        "below", "missed", "charges", "write-off", "writeoff",
-        # Legal / regulatory
-        "litigation", "litigious", "lawsuit", "penalty", "penalties",
-    }
-
-    pos_words = {
-        # Profit / growth
-        "profit", "profits", "profitable", "growth", "grew", "growing",
-        "increase", "increases", "increased", "gains", "gain",
-        # Strength
-        "strong", "strength", "robust", "solid", "healthy", "positive",
-        # Opportunity / momentum
-        "opportunity", "opportunities", "momentum", "accelerate", "accelerating",
-        # Achievement
-        "record", "exceeded", "outperformed", "upside", "beat", "beats",
-        "improve", "improved", "improvement", "improvements",
-        # Future confidence
-        "confident", "confidence", "optimistic", "upbeat", "favorable",
-    }
-
+    lm["Word"] = lm["Word"].astype(str).str.lower()
+    pos_words = set(lm.loc[lm["Positive"] > 0, "Word"])
+    neg_words = set(lm.loc[lm["Negative"] > 0, "Word"])
+    print(f"Loaded LM dictionary: {len(pos_words)} positive, {len(neg_words)} negative words")
     return pos_words, neg_words
 
 
@@ -208,9 +161,17 @@ def compute_lexicon_features(
 def build_lexicon_features(
     study_path: Path = EVENT_STUDY_PATH,
     output_path: Path = LEXICON_FEATURES_PATH,
-    section: str = "full",
 ) -> pd.DataFrame:
     """Compute LM sentiment features for all events and save to CSV.
+
+    Computes three sets of rates in one pass per transcript:
+        full         → neg_rate,      pos_rate       (whole transcript)
+        presentation → neg_rate_pres, pos_rate_pres  (management prepared remarks)
+        qa           → neg_rate_qa,   pos_rate_qa    (analyst Q&A section)
+
+    The presentation section is scripted and optimistic; Q&A is unscripted
+    and more revealing. Comparing their coefficients tests whether market
+    reactions track the candid Q&A tone more than the prepared remarks.
 
     Returns
     -------
@@ -222,7 +183,7 @@ def build_lexicon_features(
     pos_words, neg_words = load_lm_dictionary()
 
     events = pd.read_csv(study_path)
-    print(f"Computing lexicon features for {len(events)} events...")
+    print(f"Computing lexicon features for {len(events)} events (full + presentation + Q&A)...")
 
     rows = []
     for _, event in events.iterrows():
@@ -231,19 +192,37 @@ def build_lexicon_features(
             print(f"  WARN: file not found — {file_path}")
             continue
 
-        feats = compute_lexicon_features(file_path, section=section,
-                                          pos_words=pos_words, neg_words=neg_words)
+        # Compute all three sections in one transcript read
+        full  = compute_lexicon_features(file_path, section="full",
+                                         pos_words=pos_words, neg_words=neg_words)
+        pres  = compute_lexicon_features(file_path, section="presentation",
+                                         pos_words=pos_words, neg_words=neg_words)
+        qa    = compute_lexicon_features(file_path, section="qa",
+                                         pos_words=pos_words, neg_words=neg_words)
+
         rows.append({
-            "ticker": event["ticker"],
-            "file_name": event["file_name"],
+            "ticker":            event["ticker"],
+            "file_name":         event["file_name"],
             "event_trading_day": event["event_trading_day"],
-            **feats,
+            # Full transcript
+            "total_tokens":  full["total_tokens"],
+            "neg_count":     full["neg_count"],
+            "pos_count":     full["pos_count"],
+            "neg_rate":      full["neg_rate"],
+            "pos_rate":      full["pos_rate"],
+            # Presentation section
+            "neg_rate_pres": pres["neg_rate"],
+            "pos_rate_pres": pres["pos_rate"],
+            # Q&A section
+            "neg_rate_qa":   qa["neg_rate"],
+            "pos_rate_qa":   qa["pos_rate"],
         })
 
     df = pd.DataFrame(rows)
     df.to_csv(output_path, index=False)
     print(f"Saved lexicon features → {output_path}  ({len(df)} rows)")
-    print(f"  Avg NegRate: {df['neg_rate'].mean():.4f}")
-    print(f"  Avg PosRate: {df['pos_rate'].mean():.4f}")
+    print(f"  Full    — Avg NegRate: {df['neg_rate'].mean():.4f}  PosRate: {df['pos_rate'].mean():.4f}")
+    print(f"  Pres    — Avg NegRate: {df['neg_rate_pres'].mean():.4f}  PosRate: {df['pos_rate_pres'].mean():.4f}")
+    print(f"  Q&A     — Avg NegRate: {df['neg_rate_qa'].mean():.4f}  PosRate: {df['pos_rate_qa'].mean():.4f}")
 
     return df

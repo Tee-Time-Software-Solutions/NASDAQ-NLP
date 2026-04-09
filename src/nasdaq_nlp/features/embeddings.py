@@ -191,11 +191,8 @@ def nearest_neighbors(
     word: str,
     top_n: int = 10,
 ) -> list[tuple[str, float]]:
-    """Find the most similar words to 'word' in the embedding space.
-
-    Similarity is measured by cosine similarity:
-        cos_sim(a, b) = (a · b) / (||a|| × ||b||)
-    Values range from -1 (opposite) to +1 (identical direction).
+    """Find the most similar words (as per defined by cos. similarity)
+    to 'word' in the embedding space.
 
     This is a sanity check: similar financial terms should cluster together.
     E.g. nearest neighbors of 'growth' might include 'expansion', 'revenue'.

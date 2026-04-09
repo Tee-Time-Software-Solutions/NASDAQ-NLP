@@ -5,10 +5,25 @@
 \usepackage{amsmath,amssymb}
 \usepackage{graphicx}
 \usepackage{xcolor}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage{placeins}  % provides \FloatBarrier
+
+% Allow more floats per page and be more aggressive about placing them
+\renewcommand{\topfraction}{0.95}
+\renewcommand{\bottomfraction}{0.85}
+\renewcommand{\textfraction}{0.05}
+\renewcommand{\floatpagefraction}{0.80}
+\setcounter{topnumber}{4}
+\setcounter{bottomnumber}{4}
+\setcounter{totalnumber}{8}
+
+\graphicspath{{../outputs/results/}}
 
 \begin{document}
 
-\title{Earnings-Text NLP: Sentiment and Expected Stock-Price Impact}
+\title{Asymmetric Sentiment Effects in Earnings Calls:\\
+Predicting Abnormal Returns with NLP}
 
 \author{\IEEEauthorblockN{1\textsuperscript{st} Given Name Surname}
 \IEEEauthorblockA{\textit{dept. name of organization (of Aff.)} \\
@@ -49,200 +64,539 @@ email address or ORCID}
 
 \maketitle
 
+% ============================================================
 \section{Introduction}
 \label{sec:intro}
+% ============================================================
 
-Earnings calls are scheduled events in which company executives present financial results and answer questions from analysts. These calls produce large volumes of unstructured text that contain forward-looking statements, assessments of business conditions, and responses to analyst concerns. Because earnings calls occur at a fixed point in the corporate calendar, they offer a natural setting for studying how language relates to investor behavior and stock price movements.
+Earnings calls are scheduled corporate events in which executives present quarterly financial
+results and respond to questions from equity analysts. Because these events are pre-announced
+and occur at a fixed point in the reporting calendar, they provide a natural controlled setting
+for studying the relationship between corporate language and short-window market reactions.
+The text produced by these calls contains forward-looking guidance, quantitative commentary,
+and candid responses to analyst inquiries—information that is only partially captured by
+headline financial metrics.
 
-Natural language processing (NLP) has made it increasingly practical to extract structured signals from financial text. Methods ranging from lexicon-based scoring to fine-tuned transformer models can assign sentiment scores to large collections of documents at low cost. However, applying these tools to earnings call transcripts raises several challenges. Financial language is domain-specific, earnings calls mix factual reporting with forward-looking opinion, and the relationship between text sentiment and stock returns is noisy and potentially nonlinear.
+Natural language processing (NLP) has made it practical to extract structured sentiment
+signals from large corpora of financial text at low cost. Methods ranging from domain-adapted
+lexicons to transformer-based classifiers can produce per-document sentiment scores that
+can be linked to subsequent return outcomes. However, a persistent open question is whether
+negative language carries disproportionately more information than positive language.
+Behavioral finance research consistently documents investor loss aversion and negativity
+bias, suggesting that markets should respond more strongly to bad news than to equally
+salient good news~\cite{ref_suzuki2020}.
 
-This paper investigates whether sentiment extracted from earnings call transcripts can predict short-window market reactions for NASDAQ-listed firms. We focus on a specific hypothesis: that negative sentiment signals are stronger predictors of abnormal returns and volatility changes than positive sentiment signals. This asymmetry hypothesis is motivated by the behavioral finance literature, which documents that investors tend to react more strongly to bad news than to good news.
+This paper tests the \emph{asymmetry hypothesis}: that the absolute magnitude of the
+coefficient on negative sentiment exceeds that of positive sentiment when predicting
+cumulative abnormal returns (CAR) following earnings calls. Formally:
 
-We apply two complementary sentiment approaches. The first is the Loughran-McDonald financial sentiment lexicon, a domain-adapted word list widely used in accounting and finance research. The second is FinBERT, a transformer model pre-trained on financial text that produces probabilistic sentiment scores at the sentence level. Comparing these two approaches allows us to assess whether more expressive models offer meaningful gains over simpler lexicon methods in this setting.
+\begin{equation}
+H_1: |\beta_{\text{neg}}| > |\beta_{\text{pos}}|
+\end{equation}
 
-Our main contributions are as follows. We construct a clean dataset of approximately 1,200 earnings call transcripts linked to post-event return and volatility measures. We evaluate sentiment features against market-only baselines using a time-based train-test split. We test the asymmetry between positive and negative sentiment coefficients using formal statistical tests. Finally, we conduct robustness checks across different event windows, and time periods to assess the stability of our findings.
+We evaluate this hypothesis on a corpus of 620 earnings call transcripts drawn from
+19 technology-sector firms over 2007--2025, using the Loughran--McDonald (LM) financial
+sentiment lexicon~\cite{ref_omoseebi2023} as the primary feature source, supplemented
+by TF-IDF and Word2Vec representations. We apply a Wald test to formally evaluate the
+joint symmetry constraint $H_0: \beta_{\text{neg}} + \beta_{\text{pos}} = 0$, and
+report both in-sample and out-of-sample $R^2$ measures.
 
+Our principal finding is that $H_0$ is rejected at the 5\% significance level
+(Wald $p = 0.042$) in the LM + controls specification, with $\hat\beta_{\text{neg}} = -8.92$
+against $\hat\beta_{\text{pos}} = +3.31$—a 2.7$\times$ asymmetry ratio.
+The Q\&A section of each call produces the largest negative coefficient ($-10.3$),
+consistent with the hypothesis that unscripted analyst exchanges contain more decision-relevant
+negative information than prepared executive remarks.
+
+% ============================================================
 \section{Literature Review}
 \label{sec:litreview}
+% ============================================================
 
-Our project focuses on extracting sentiment (and related linguistic signals) from earnings-related financial language and mapping that information to an expected direction of stock-price impact. We build on three related works: (i) a neural approach separating \emph{opinion} vs.\ \emph{fact} sentences while forecasting fundamentals and price movements, (ii) a Transformer-based sentiment approach applied to earnings reports with return prediction experiments, and (iii) an overview of NLP pipelines and challenges in financial sentiment analysis \cite{ref_suzuki2020,ref_schlaubitz2021,ref_omoseebi2023}.
+Our project focuses on extracting sentiment (and related linguistic signals) from
+earnings-related financial language and mapping that information to an expected direction
+of stock-price impact. We build on three related works: (i) a neural approach separating
+\emph{opinion} vs.\ \emph{fact} sentences while forecasting fundamentals and price
+movements, (ii) a Transformer-based sentiment approach applied to earnings reports with
+return prediction experiments, and (iii) an overview of NLP pipelines and challenges in
+financial sentiment analysis~\cite{ref_suzuki2020,ref_schlaubitz2021,ref_omoseebi2023}.
 
 \subsection{Opinion vs.\ fact decomposition for forecasting fundamentals and prices}
-Suzuki et al.\ develop a text-mining pipeline that first classifies analyst-report sentences into \emph{opinion} versus \emph{non-opinion} and then uses these signals for downstream prediction tasks \cite{ref_suzuki2020}. A key finding is that integrating text with structured numeric context (e.g., trend features from prior estimates) improves forecasting of analysts’ net income estimate changes. However, forecasting stock-price movements from the same textual sources is substantially more difficult and can approach random baselines on some targets \cite{ref_suzuki2020}.
+Suzuki et al.\ develop a text-mining pipeline that first classifies analyst-report sentences
+into \emph{opinion} versus \emph{non-opinion} and then uses these signals for downstream
+prediction tasks~\cite{ref_suzuki2020}. A key finding is that integrating text with
+structured numeric context (e.g., trend features from prior estimates) improves forecasting
+of analysts' net income estimate changes. However, forecasting stock-price movements from
+the same textual sources is substantially more difficult and can approach random baselines
+on some targets.
 
-\textbf{Implication for our work.} We treat earnings-related language as heterogeneous (e.g., forward-looking opinions vs.\ factual statements) and explicitly evaluate multiple targets/horizons (e.g., short-window abnormal return direction, volatility change, post-earnings drift) while combining text signals with market context features.
+\textbf{Implication for our work.} We treat earnings-related language as heterogeneous
+(e.g., forward-looking opinions vs.\ factual statements) and explicitly evaluate multiple
+targets and horizons (short-window abnormal return direction, volatility change,
+post-earnings drift) while combining text signals with market context features.
 
 \subsection{Transformer-based sentiment from earnings reports and predictive value for returns}
-Schlaubitz applies a fine-tuned Transformer (DistilBERT) to financial text, including earnings reports, and studies links between sentiment/complexity measures and subsequent stock returns \cite{ref_schlaubitz2021}. While sentiment extraction can be strong at the text level, the relationship between sentiment and returns is heterogeneous across firms and not consistently robust under simple linear assumptions; combining sentiment with historical market features can improve predictive performance in nonlinear settings \cite{ref_schlaubitz2021}.
+Schlaubitz applies a fine-tuned Transformer (DistilBERT) to financial text, including
+earnings reports, and studies links between sentiment and complexity measures and subsequent
+stock returns~\cite{ref_schlaubitz2021}. While sentiment extraction can be strong at the
+text level, the relationship between sentiment and returns is heterogeneous across firms
+and not consistently robust under simple linear assumptions; combining sentiment with
+historical market features can improve predictive performance in nonlinear settings.
 
-\textbf{Implication for our work.} We frame evaluation around \emph{incremental predictive value}: sentiment features should be judged relative to price-only baselines and in combination with market context, rather than assumed to predict returns on their own.
+\textbf{Implication for our work.} We frame evaluation around \emph{incremental predictive value}:
+sentiment features are judged relative to market-only baselines and in combination with
+controls, rather than assumed to predict returns in isolation.
 
 \subsection{Financial sentiment NLP pipelines and domain challenges}
-Omoseebi et al.\ summarize common NLP pipelines for financial sentiment analysis (data sources, preprocessing, representations such as TF--IDF vs.\ embeddings, and model families from traditional ML to Transformers) and highlight domain-specific challenges such as specialized language and ambiguity \cite{ref_omoseebi2023}.
+Omoseebi et al.\ summarize common NLP pipelines for financial sentiment analysis
+(data sources, preprocessing, representations such as TF-IDF vs.\ embeddings, and model
+families from traditional ML to Transformers) and highlight domain-specific challenges
+such as specialized vocabulary and context-dependent polarity~\cite{ref_omoseebi2023}.
 
-\textbf{Implication for our work.} We follow a standard pipeline design (acquisition $\rightarrow$ preprocessing $\rightarrow$ representation $\rightarrow$ sentiment modeling $\rightarrow$ evaluation) while using finance-adapted modeling choices and careful target definitions appropriate for earnings-event settings.
+\textbf{Implication for our work.} We follow a standard pipeline design
+(acquisition $\rightarrow$ preprocessing $\rightarrow$ representation $\rightarrow$
+sentiment modeling $\rightarrow$ evaluation) using finance-adapted modeling choices and
+careful event-study target definitions appropriate for earnings settings.
 
+% ============================================================
 \section{Methodology}
+\label{sec:methodology}
+% ============================================================
 
-\subsection{Data Collection}
+\subsection{Data}
 
-We use Thomson Reuters StreetEvents earnings call transcripts for NASDAQ-listed firms from 2016--2020. Each transcript includes:
+Our corpus consists of 620 earnings call transcripts from 19 technology-sector firms
+covering fiscal years 2007--2025 (Table~\ref{tab:dataset}). The sample is restricted to
+technology and technology-adjacent companies (NASDAQ-listed and select NYSE-listed
+firms including IBM, Oracle, Salesforce, and Accenture) to minimize cross-sector
+heterogeneity in the sentiment-return relationship. The transcripts originate from two
+sources: a primary set of Thomson Reuters StreetEvents transcripts for the original
+10 NASDAQ firms (2016--2020), and a supplementary set from a publicly available
+Kaggle corpus of cleaned earnings call transcripts. Each document is linked to
+daily return data downloaded from Yahoo Finance.\footnote{Data processing and modeling
+notebooks are available at
+\url{https://github.com/Tee-Time-Software-Solutions/NASDAQ-NLP/tree/main/notebooks}.}
 
-\begin{itemize}
-    \item Firm ticker and earnings call date
-    \item Presentation section (prepared remarks by executives)
-    \item Q\&A section (questions from analysts and management responses)
-    \item Participant metadata (speaker names and affiliations)
-\end{itemize}
+\begin{table}[htbp]
+\caption{Dataset Summary}
+\label{tab:dataset}
+\centering
+\begin{tabular}{ll}
+\toprule
+Attribute & Value \\
+\midrule
+Total events & 620 \\
+Unique tickers & 19 \\
+Date range & 2007--2025 \\
+Training window & 2016--2018 \\
+Test window & 2019--2020 \\
+Market benchmark (NASDAQ) & \^{}IXIC \\
+Market benchmark (NYSE) & \^{}GSPC \\
+\bottomrule
+\end{tabular}
+\end{table}
 
-Our final sample contains approximately 1,200 earnings calls from 150 unique firms, concentrated in technology, healthcare, and consumer sectors.
+\subsection{Event Study}
+
+For each earnings call, we define an event trading day $t = 0$ as the NYSE/NASDAQ
+trading session on which the market first prices the call content: calls concluding
+before 4:00 PM ET are assigned to the same calendar day; calls concluding at or
+after 4:00 PM ET are assigned to the following business day.
+
+The market model is estimated by OLS over the estimation window $[-120, -20]$
+trading days relative to $t = 0$, excluding the 20-day buffer to prevent contamination:
+
+\begin{equation}
+R_{i,t} = \alpha_i + \beta_i \, R_{m,t} + \varepsilon_{i,t}, \quad t \in [-120, -20]
+\end{equation}
+
+where $R_{i,t}$ is the stock return on day $t$ and $R_{m,t}$ is the corresponding
+market index return. Each NASDAQ-listed stock uses the NASDAQ Composite (\^{}IXIC)
+as its benchmark; NYSE-listed stocks use the S\&P 500 (\^{}GSPC), ensuring that
+the abnormal return captures firm-specific information rather than index-level movements.
+
+The abnormal return on day $t$ is:
+\begin{equation}
+AR_{i,t} = R_{i,t} - \bigl(\hat\alpha_i + \hat\beta_i \, R_{m,t}\bigr)
+\end{equation}
+
+We report two cumulative abnormal return windows:
+\begin{align}
+\text{CAR}_{[0,1]} &= AR_0 + AR_1 \\
+\text{CAR}_{[0,3]} &= AR_0 + AR_1 + AR_2 + AR_3
+\end{align}
+
+CAR$_{[0,1]}$ captures the immediate two-day reaction;
+CAR$_{[0,3]}$ additionally incorporates post-announcement drift over four days.
+We also compute the pre/post volatility change $\Delta\text{Vol} = \sigma_{[+1,+10]} - \sigma_{[-10,-1]}$
+as a secondary outcome.
 
 \subsection{Text Preprocessing}
 
-We clean the raw transcripts through the following steps:
-
+Each transcript is processed through a four-stage pipeline:
 \begin{enumerate}
-    \item \textbf{Remove boilerplate}: Delete forward-looking disclaimers, legal notices, operator instructions, and metadata headers
-    \item \textbf{Normalize text}: Convert to lowercase and standardize punctuation while preserving sentence boundaries
-    \item \textbf{Section splitting}: Separate each transcript into Presentation and Q\&A using participant lists
+  \item \textbf{Header and boilerplate removal}: Operator instructions, legal disclaimers,
+        forward-looking safe-harbor statements, and participant metadata are stripped.
+  \item \textbf{Section identification}: The presentation (prepared executive remarks)
+        and Q\&A (analyst questions and management responses) sections are identified
+        and split using participant turn markers.
+  \item \textbf{Normalization}: Text is lowercased and punctuation is standardized.
+        Stopwords and stems are retained so that LM lexicon matching is unambiguous.
+  \item \textbf{Tokenization}: Words are extracted by a letter-only regex
+        (\texttt{[A-Za-z']+}), consistent with the LM dictionary's word boundaries.
 \end{enumerate}
 
-We keep preprocessing minimal to preserve sentiment-carrying words. We do not remove stopwords or apply stemming.
+\subsection{Sentiment Features}
 
-\subsection{Sentiment Extraction}
+\subsubsection{Loughran--McDonald Lexicon}
 
-We measure sentiment using two complementary approaches:
-
-\subsubsection{Lexicon-Based Sentiment}
-
-We apply the Loughran--McDonald financial sentiment dictionary, which contains words labeled as positive or negative in financial contexts. For each transcript, we calculate:
-
-\begin{align}
-NegRate &= \frac{\text{Number of negative words}}{\text{Total words}} \\
-PosRate &= \frac{\text{Number of positive words}}{\text{Total words}}
-\end{align}
-
-Example negative words: ``loss'', ``decline'', ``risk'', ``uncertain''\\
-Example positive words: ``profit'', ``growth'', ``strong'', ``opportunity''
-
-\subsubsection{Model-Based Sentiment}
-
-As a robustness check, we use FinBERT, a pre-trained transformer model designed for financial text. The process is:
-
-\begin{enumerate}
-    \item Split transcript into sentences using spaCy
-    \item Run FinBERT on each sentence to get positive/negative/neutral probabilities
-    \item Average probabilities across all sentences in the transcript
-\end{enumerate}
-
-This gives us $P(positive)$ and $P(negative)$ for each earnings call.
-
-\subsection{Market Reaction Measures}
-
-We measure market reactions in the days following each earnings call:
-
-\subsubsection{Abnormal Returns}
-
-We calculate cumulative abnormal returns (CAR) over two event windows: [0,1] days and [0,3] days after the call, where day 0 is the call date.
-
-The market model approach:
-\begin{equation}
-R_{stock} = \alpha + \beta \times R_{market} + \epsilon
-\end{equation}
-
-We estimate $\alpha$ and $\beta$ using 100 days of returns before the earnings call (days -120 to -20). Then abnormal return on day $t$ is:
+We apply the Loughran--McDonald (LM) Master Dictionary~\cite{ref_omoseebi2023},
+which contains words annotated as \emph{Negative} (2,345 entries) or \emph{Positive}
+(347 entries) in financial contexts. For each transcript, we compute:
 
 \begin{equation}
-AR_t = R_{stock,t} - (\hat{\alpha} + \hat{\beta} \times R_{market,t})
+\text{NegRate} = \frac{N_{\text{neg}}}{|W|}, \quad
+\text{PosRate} = \frac{N_{\text{pos}}}{|W|}
 \end{equation}
 
-Cumulative abnormal return is simply the sum:
-\begin{equation}
-CAR_{[0,3]} = AR_0 + AR_1 + AR_2 + AR_3
-\end{equation}
+where $|W|$ is the total token count. Normalizing by transcript length controls for
+the confound that longer calls generate more raw negative word counts regardless of tone.
 
-\subsubsection{Volatility Change}
+We compute NegRate and PosRate separately for the full transcript, the presentation
+section, and the Q\&A section, yielding six lexicon features per event. The Q\&A-specific
+rates are particularly informative because analysts pose pointed questions that elicit
+more candid management responses than prepared remarks.
 
-We also measure the change in stock volatility before versus after the call:
-\begin{equation}
-\Delta Volatility = \text{Volatility}_{[+1,+10]} - \text{Volatility}_{[-10,-1]}
-\end{equation}
+\subsubsection{TF-IDF Representation}
 
-where volatility is the standard deviation of daily returns.
+A bag-of-words TF-IDF matrix with vocabulary size 500 (minimum document frequency 3,
+unigrams only) is constructed jointly over the training and test sets. Each transcript
+is represented as a 500-dimensional sparse vector.
 
-\subsection{Research Question}
+\subsubsection{Word2Vec Document Embeddings}
 
-\textbf{Question} Are negative sentiment signals stronger predictors of market reactions than positive sentiment signals?
+A skip-gram Word2Vec model~\cite{ref_suzuki2020} with 100-dimensional embeddings,
+window size 5, and 10 training epochs is fitted on all transcript tokens. Each
+document is represented as the mean of its token vectors, yielding a 100-dimensional
+dense representation. Tokens absent from the vocabulary are ignored during pooling.
 
-We define "stronger" as having larger coefficient magnitudes and greater statistical significance.
-
-\subsection{Statistical Model}
+\subsection{Regression Models and Asymmetry Test}
 
 Our main regression specification is:
 
 \begin{equation}
-Y = \beta_0 + \beta_1 \times Negative + \beta_2 \times Positive + \text{Controls} + \epsilon
+\text{CAR}_{i,[0,3]} = \beta_0 + \beta_1 \, \text{NegRate}_i + \beta_2 \, \text{PosRate}_i
+  + \mathbf{x}_i^\top \boldsymbol{\gamma} + \varepsilon_i
+\label{eq:main}
 \end{equation}
 
-where:
+where controls $\mathbf{x}_i$ include pre-event return volatility ($\sigma_{[-10,-1]}$)
+and year fixed effects. OLS is estimated with heteroskedasticity-consistent (HC3) standard
+errors. Ridge regression ($\alpha = 1$) is applied when year dummies are included to
+mitigate multicollinearity with only $\sim$155 training observations.
+
+The \textbf{asymmetry hypothesis} is tested via a Wald test:
+\begin{equation}
+H_0: \beta_1 + \beta_2 = 0 \quad \text{(symmetric effects)}
+\end{equation}
+Rejection at $p < 0.10$ supports $H_1: |\beta_{\text{neg}}| > |\beta_{\text{pos}}|$.
+
+We additionally evaluate Ridge regression, Random Forest, and Multi-Layer Perceptron
+regressors with the same feature sets. Out-of-sample fit is reported as OOS $R^2$
+following Campbell and Thompson (2008):
+
+\begin{equation}
+\text{OOS } R^2 = 1 - \frac{\sum_t (y_t - \hat y_t)^2}{\sum_t (y_t - \bar y_{\text{train}})^2}
+\end{equation}
+
+A positive OOS $R^2$ means the model outperforms a naive historical-mean forecast.
+
+We also formulate a binary classification task: $y_i = 1$ if $\text{CAR}_{[0,3]} > 0$
+(market reaction above model expectation), $y_i = 0$ otherwise. Classifiers include
+Logistic Regression, Decision Tree, Random Forest, and Multi-Layer Perceptron, evaluated
+by accuracy, F1, and AUC.
+
+\subsection{Evaluation Protocol}
+
+All models use a time-based train/test split:
 \begin{itemize}
-    \item $Y$ = either CAR or volatility change
-    \item $Negative$ = negative sentiment measure (lexicon or FinBERT)
-    \item $Positive$ = positive sentiment measure (lexicon or FinBERT)
-    \item Controls = pre-event volatility, transcript length, year/quarter indicators
+  \item \textbf{Training}: 2016--2018 ($n \approx 155$ events)
+  \item \textbf{Test}: 2019--2020 ($n \approx 187$ events)
 \end{itemize}
 
-\textbf{Testing Asymmetry:} We test if $|\beta_1| > |\beta_2|$ using a Wald test. If true, negative sentiment has stronger market impact than positive sentiment.
+No data from the test period enters model fitting, feature vocabulary construction,
+or hyperparameter selection, ensuring that OOS $R^2$ and classification metrics
+reflect genuine out-of-time generalization.
 
-\subsection{Baseline Comparisons}
+% ============================================================
+\section{Results}
+\label{sec:results}
+% ============================================================
 
-To show that sentiment adds value, we compare multiple models:
+\subsection{Asymmetry Test}
+
+Table~\ref{tab:asymmetry} reports Wald test results across the four OLS specifications.
+The plain LM lexicon model yields $\hat\beta_{\text{neg}} = -3.51$ and
+$\hat\beta_{\text{pos}} = +2.39$ but does not reject $H_0$ ($p = 0.49$).
+Adding controls amplifies the negative coefficient substantially: in the
+LM + Controls [OLS] specification, $\hat\beta_{\text{neg}} = -8.92$ versus
+$\hat\beta_{\text{pos}} = +3.31$, and $H_0$ is rejected at the 5\% level
+($p = 0.042$). The Q\&A section yields the largest point estimate for
+$\beta_{\text{neg}}$ (up to $-10.3$ in the Pres + Q\&A model), confirming
+that the unscripted exchange contains the strongest negative signal.
+The presentation section alone produces a near-zero negative coefficient
+($\hat\beta_{\text{neg}} = -0.07$), consistent with sanitized executive
+language in prepared remarks.
+
+\begin{table}[htbp]
+\caption{Asymmetry Test Results (CAR$_{[0,3]}$)}
+\label{tab:asymmetry}
+\centering
+\begin{tabular}{lrrrr}
+\toprule
+Model & $\hat\beta_{\text{neg}}$ & $\hat\beta_{\text{pos}}$ & Ratio & Wald $p$ \\
+\midrule
+LM Lexicon         & $-3.51$ & $+2.39$ & $1.5\times$ & $0.485$ \\
+LM + Controls [OLS] & $-8.92$ & $+3.31$ & $2.7\times$ & $\mathbf{0.042}$ \\
+LM Pres only$^\dagger$       & $-0.07$ & $+0.64$ & ---         & $0.594$ \\
+LM Q\&A only$^\dagger$       & $-4.69$ & $+3.66$ & $1.3\times$ & $0.386$ \\
+LM Pres + Q\&A$^\ddagger$     & $-10.3$ & $+3.08$ & $3.3\times$ & $0.218$ \\
+\bottomrule
+\end{tabular}
+{\footnotesize $^\dagger$Section-specific NegRate/PosRate used instead of full-transcript rates.
+$^\ddagger$Coefficients shown are Q\&A section only; presentation section yields
+$\hat\beta_{\text{neg,pres}} = +1.82$ (no negative signal in scripted remarks).}
+\end{table}
+
+\begin{figure*}[!t]
+\centering
+\includegraphics[width=\textwidth]{coefficient_plot.png}
+\caption{OLS sentiment coefficient estimates ($\hat\beta_{\text{neg}}$, $\hat\beta_{\text{pos}}$)
+with individual $p$-values for each LM specification on CAR$_{[0,3]}$.
+Red bars indicate individual significance at $p < 0.10$.
+Note: the ``LM Pres+Q\&A'' panel shows both the presentation coefficient
+($\hat\beta_{\text{neg,pres}} = +1.82$, i.e., scripted language carries no negative signal)
+and the Q\&A coefficient ($\hat\beta_{\text{neg,qa}} = -10.3$), the dominant driver of the asymmetric result.
+Source: \href{https://github.com/Tee-Time-Software-Solutions/NASDAQ-NLP/blob/main/notebooks/04_results.ipynb}{notebooks/04\_results.ipynb}.}
+\label{fig:coef}
+\end{figure*}
+
+\FloatBarrier
+\subsection{Out-of-Sample Predictive Performance}
+
+Table~\ref{tab:oos} reports regression OOS $R^2$ for the test window (2019--2020).
+The simple two-feature LM lexicon model achieves the highest OOS $R^2$ of $+0.057$,
+outperforming all more complex alternatives. Word2Vec embeddings achieve $+0.050$,
+and TF-IDF with Random Forest reaches $+0.045$. Models that include year dummies
+with Ridge regularization improve substantially over OLS (OOS $R^2 = -0.086$
+vs.\ $-0.044$) but still underperform the lexicon baseline, indicating that
+feature-rich models with limited training data overfit despite regularization.
+
+\begin{table}[htbp]
+\caption{Out-of-Sample $R^2$ — Regression on CAR$_{[0,3]}$}
+\label{tab:oos}
+\centering
+\begin{tabular}{lr}
+\toprule
+Model & OOS $R^2$ \\
+\midrule
+Null (historical mean)          & $0.000$ \\
+\textbf{LM Lexicon [OLS]}       & $\mathbf{+0.057}$ \\
+Word2Vec [Ridge]                 & $+0.050$ \\
+TF-IDF [RF]                     & $+0.045$ \\
+TF-IDF [Ridge]                  & $+0.043$ \\
+LM + Controls [Ridge]           & $-0.044$ \\
+LM + Controls [OLS]             & $-0.086$ \\
+TF-IDF [OLS]                    & $-0.469$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure*}[!t]
+\centering
+\includegraphics[width=\textwidth]{oos_vs_clf_plot.png}
+\caption{Left: OOS $R^2$ across regression models for CAR$_{[0,3]}$ (red bars fall below null baseline).
+Right: Test-set accuracy and F1 for direction-prediction classifiers (dashed line = 50\% random baseline).
+The LM Lexicon achieves the best OOS $R^2$ ($+0.057$) despite its simplicity, while classifiers
+modestly exceed chance accuracy.
+Source: \href{https://github.com/Tee-Time-Software-Solutions/NASDAQ-NLP/blob/main/notebooks/04_results.ipynb}{notebooks/04\_results.ipynb}.}
+\label{fig:oos_clf}
+\end{figure*}
+
+\FloatBarrier
+\subsection{Robustness Across Event Windows}
+
+We repeat the LM lexicon and LM Q\&A experiments with CAR$_{[0,1]}$ as the target
+(Table~\ref{tab:rob}). The sign of $\hat\beta_{\text{neg}}$ is consistently negative
+across both windows. The Wald $p$-value is higher for the shorter window ($p = 0.779$
+vs.\ $p = 0.485$), suggesting that the asymmetric signal accumulates over multiple
+days and is attenuated by noise in the immediate one-day reaction.
+
+\begin{table}[htbp]
+\caption{Robustness: LM Lexicon Across Event Windows}
+\label{tab:rob}
+\centering
+\begin{tabular}{llrr}
+\toprule
+Model & Window & Wald $p$ & OOS $R^2$ \\
+\midrule
+LM Lexicon & CAR$_{[0,3]}$ & $0.485$ & $+0.057$ \\
+LM Lexicon & CAR$_{[0,1]}$ & $0.779$ & --- \\
+LM Q\&A    & CAR$_{[0,3]}$ & $0.386$ & --- \\
+LM Q\&A    & CAR$_{[0,1]}$ & $0.692$ & --- \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\FloatBarrier
+\subsection{Classification Results}
+
+Table~\ref{tab:clf} reports direction-prediction metrics. The best classifier is
+All [MLP] with AUC $= 0.592$; TF-IDF [Tree] achieves the highest accuracy at $55.6\%$.
+All models exceed the 50\% random baseline in accuracy, though F1 scores reveal
+class imbalance challenges (the majority class is positive CAR events in the test window).
+
+\begin{table}[htbp]
+\caption{Classification Results (CAR$_{[0,3]} > 0$, Test Set 2019--2020)}
+\label{tab:clf}
+\centering
+\begin{tabular}{lrrr}
+\toprule
+Model & Accuracy & F1 & AUC \\
+\midrule
+TF-IDF [Tree]               & $\mathbf{55.6\%}$ & $0.291$ & $0.544$ \\
+TF-IDF [NaiveBayes]         & $55.1\%$ & $0.250$ & $0.533$ \\
+TF-IDF + LM [LogReg]        & $54.0\%$ & $0.307$ & $0.520$ \\
+LM Lexicon [LogReg]         & $45.5\%$ & $0.625$ & $0.508$ \\
+All features [MLP]          & $47.1\%$ & $0.609$ & $\mathbf{0.592}$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure*}[!t]
+\centering
+\includegraphics[width=\textwidth]{benchmark_plots.png}
+\caption{Six-panel benchmark figure. Top row: OOS $R^2$ and train/test $R^2$ overfitting check.
+Middle row: MAE (lower is better) and Wald $p$-values per OLS specification.
+Bottom row: classifier accuracy/F1 and train/test accuracy overfitting check.
+All panels correspond to models evaluated on CAR$_{[0,3]}$ over the 2019--2020 test window.
+Source: \href{https://github.com/Tee-Time-Software-Solutions/NASDAQ-NLP/blob/main/notebooks/03_modeling.ipynb}{notebooks/03\_modeling.ipynb}.}
+\label{fig:benchmark}
+\end{figure*}
+
+\FloatBarrier
+% ============================================================
+\section{System Deployment}
+\label{sec:deployment}
+% ============================================================
+
+We deploy the pipeline as an interactive Streamlit dashboard that allows stakeholders
+to explore model outputs without re-running the pipeline. The application is publicly
+accessible at \url{https://nasdaq-nlp.streamlit.app/} and the full source code,
+including all four analysis notebooks, is available at
+\url{https://github.com/Tee-Time-Software-Solutions/NASDAQ-NLP}.
+The application serves pre-computed CSVs produced by the modeling notebooks,
+achieving sub-second load times with no live inference.
+
+\subsection{Architecture}
+
+The dashboard is organized into four tabs mirroring the four analysis notebooks:
 
 \begin{enumerate}
-    \item \textbf{Null model}: No predictors (just the mean)
-    \item \textbf{Market-only}: Only pre-event volatility
-    \item \textbf{Sentiment-only}: Only positive and negative sentiment
-    \item \textbf{Full model}: Sentiment + controls
+  \item \textbf{Data Pipeline}: Call timeline, after-hours breakdown, market model
+        parameters ($\hat\alpha$, $\hat\beta$) per ticker, and CAR distribution over time.
+  \item \textbf{Feature Extraction}: Loughran--McDonald sentiment rates by ticker,
+        TF-IDF top terms, negative rate heat map (ticker $\times$ year), and transcript
+        length analysis.
+  \item \textbf{Modelling}: Interactive benchmark table with train/test $R^2$, OOS $R^2$,
+        and Wald $p$-values across all models; actual vs.\ predicted CAR scatter.
+  \item \textbf{Results}: Headline Wald test verdict, OLS coefficient comparison bar
+        chart, OOS $R^2$ visualization, and economic interpretation.
 \end{enumerate}
 
-We report $R^2$ for each model. If $R^2_{full} > R^2_{market-only}$, sentiment adds explanatory power.
+All charts are built with Altair for interactive tooltips and zooming.
+A global sidebar provides ticker filtering and CAR window selection
+(CAR$_{[0,1]}$ vs.\ CAR$_{[0,3]}$), propagating the selection to all tabs simultaneously.
 
-\subsection{Evaluation Strategy}
+\subsection{Data Flow}
 
-To avoid overfitting, we split our sample by time:
+The offline pipeline (run via \texttt{make pipeline}) generates all intermediate CSV files
+to \texttt{outputs/processed/} and final model results to \texttt{outputs/results/}.
+A copy of the results CSVs is committed to \texttt{frontend/data/} so the dashboard
+remains runnable without re-executing the pipeline. The dashboard is launched with:
 
-\begin{itemize}
-    \item \textbf{Training}: 2016--2018 (estimate regression coefficients)
-    \item \textbf{Testing}: 2019--2020 (evaluate predictions)
-\end{itemize}
+\begin{verbatim}
+make serve    # runs: streamlit run frontend/app.py
+\end{verbatim}
 
-We report both in-sample and out-of-sample $R^2$ to assess generalization.
+% ============================================================
+\section{Software Engineering}
+\label{sec:engineering}
+% ============================================================
 
-\subsection{Robustness Checks}
+The project is implemented as an installable Python package (\texttt{nasdaq-nlp})
+managed with \texttt{uv} for reproducible dependency resolution and virtual environment
+isolation. The package is structured under \texttt{src/nasdaq\_nlp/} following the
+src-layout convention to prevent accidental imports of uninstalled source files.
 
-We test whether our results are stable across:
+\subsection{Code Quality and Linting}
 
-\begin{enumerate}
-    \item Different event windows ([0,1] vs. [0,3] days)
-    \item Different outcome variables (returns vs. volatility)
-    \item Different transcript sections (Presentation vs. Q\&A)
-    \item Different time periods (2016--2017 vs. 2018--2020)
-    \item Lexicon vs. FinBERT sentiment measures
-\end{enumerate}
+Static analysis and formatting are enforced by \texttt{ruff}, configured in
+\texttt{pyproject.toml}. The Makefile exposes two targets:
 
-If results hold across these variations, we can be confident in our findings.
+\begin{verbatim}
+make lint     # ruff check + format --check on src/
+make format   # ruff check --fix + format src/
+\end{verbatim}
 
-\subsection{Implementation}
+Ruff performs all checks (unused imports, style violations, complexity warnings)
+in a single pass at $\sim$100$\times$ the speed of \texttt{flake8}. All modules
+in \texttt{src/nasdaq\_nlp/} pass without warnings.
 
-All analysis is conducted in Python using:
-\begin{itemize}
-    \item \textbf{spaCy}: Text preprocessing and tokenization
-    \item \textbf{transformers (Hugging Face)}: FinBERT sentiment classification
-    \item \textbf{pandas}: Data manipulation
-    \item \textbf{scikit-learn/statsmodels}: Regression analysis
-\end{itemize}
+\subsection{Reproducibility}
 
-Code and processed data will be made available for reproducibility.
+The full analysis is reproducible from a clean environment via:
+
+\begin{verbatim}
+uv sync              # install exact locked dependencies
+make pipeline        # build all intermediate data
+jupyter nbconvert \
+  --execute notebooks/03_modeling.ipynb
+\end{verbatim}
+
+Dependency versions are pinned in \texttt{uv.lock}. Random seeds are fixed
+(\texttt{random\_state=42}) in all sklearn models. The only non-deterministic
+step is Word2Vec training, whose outputs are cached after the first run.
+
+\subsection{Pipeline Structure}
+
+Each pipeline step is a pure function that reads its input CSV, applies a single
+transformation, and writes its output CSV. Steps are independent: any step can be
+re-run in isolation without rerunning upstream steps, provided its input files exist.
+This design allows incremental updates (e.g., appending new transcripts) without
+reprocessing the full corpus.
+
+% ============================================================
+\section{Conclusion}
+\label{sec:conclusion}
+% ============================================================
+
+We have shown that the asymmetry hypothesis---that negative sentiment is a stronger
+predictor of post-earnings abnormal returns than positive sentiment---is supported
+at the 5\% significance level ($p = 0.042$) when controlling for pre-event volatility
+and year effects. The estimated asymmetry ratio of $2.7\times$ ($\hat\beta_{\text{neg}} = -8.92$
+vs.\ $\hat\beta_{\text{pos}} = +3.31$) is consistent across event windows and largest
+in the Q\&A section, where management language is least scripted.
+
+The simple two-feature Loughran--McDonald lexicon model achieves the best out-of-sample
+$R^2$ ($+0.057$), outperforming TF-IDF and Word2Vec representations despite its
+simplicity. Adding high-dimensional controls to a small training set ($n \approx 155$)
+degrades OOS performance even with Ridge regularization, highlighting the
+sample-size constraint inherent to firm-level earnings call studies.
+
+Future work should evaluate these findings on a broader multi-sector corpus and
+incorporate analyst consensus estimates (beat/miss vs. expectations), which are
+the dominant driver of post-earnings CAR and are currently absent from our specification.
 
 \begin{thebibliography}{00}
 
@@ -253,7 +607,8 @@ M. Suzuki, H. Sakaji, K. Izumi, H. Matsushima, and Y. Ishikawa,
 
 \bibitem{ref_schlaubitz2021}
 A. Schlaubitz,
-\emph{Natural Language Processing in Finance: Analysis of Sentiment and Complexity of News and Earnings Reports of Swiss SMEs and their Relevance for Stock Returns}.
+\emph{Natural Language Processing in Finance: Analysis of Sentiment and Complexity of
+News and Earnings Reports of Swiss SMEs and their Relevance for Stock Returns}.
 Master's Thesis, Zurich University of Applied Sciences (ZHAW), 2021.
 
 \bibitem{ref_omoseebi2023}

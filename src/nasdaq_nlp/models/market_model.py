@@ -117,10 +117,19 @@ def build_event_panel(
         event_id, ticker, file_name, event_trading_day,
         date, relative_day, stock_return, market_return
     """
-    # Build a date → index_return lookup table for fast merging
-    index_map: dict[pd.Timestamp, float] = dict(
-        zip(pd.to_datetime(index_returns["date"]), index_returns["return"])
-    )
+    # Build a (index_ticker, date) → return lookup.
+    # If index_returns has an `index_ticker` column (multi-index run), group by it.
+    # Otherwise, treat the whole series as a single unnamed index (backwards compat).
+    if "index_ticker" in index_returns.columns:
+        index_maps: dict[str, dict] = {
+            idx: dict(zip(pd.to_datetime(grp["date"]), grp["return"]))
+            for idx, grp in index_returns.groupby("index_ticker")
+        }
+        default_index = next(iter(index_maps))
+    else:
+        _single = dict(zip(pd.to_datetime(index_returns["date"]), index_returns["return"]))
+        index_maps = {"^IXIC": _single}
+        default_index = "^IXIC"
 
     # Build a (ticker, date) → stock_return lookup
     stock_returns_indexed = stock_returns.set_index(["ticker", "date"])["return"]
@@ -129,6 +138,9 @@ def build_event_panel(
     for event_id, row in meta.iterrows():
         ticker = row["ticker"]
         event_day = pd.Timestamp(row["event_trading_day"])
+        # Use the event's assigned market index; fall back to default
+        mkt_idx = row.get("market_index", default_index) if "market_index" in row.index else default_index
+        index_map = index_maps.get(mkt_idx, index_maps[default_index])
 
         # Get all trading dates for this ticker, sorted
         ticker_dates = sorted(

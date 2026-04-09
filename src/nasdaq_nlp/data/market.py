@@ -127,25 +127,46 @@ def download_stock_prices(
 def download_index_prices(
     start_date: pd.Timestamp,
     end_date: pd.Timestamp,
+    index_tickers: list[str] | None = None,
 ) -> pd.DataFrame:
-    """Download NASDAQ Composite (^IXIC) Adjusted Close prices."""
-    print(f"Downloading NASDAQ index ({NASDAQ_INDEX_TICKER})")
+    """Download Adjusted Close prices for one or more market indices.
 
-    hist = yf.Ticker(NASDAQ_INDEX_TICKER).history(
-        start=start_date,
-        end=end_date,
-        auto_adjust=True,
-    )
+    Parameters
+    ----------
+    index_tickers : list[str] | None
+        Yahoo Finance tickers for the indices to download (e.g. ["^IXIC", "^GSPC"]).
+        Defaults to [NASDAQ_INDEX_TICKER] for backwards compatibility.
 
-    if hist.empty:
-        raise RuntimeError("Failed to download NASDAQ index data.")
+    Returns
+    -------
+    pd.DataFrame with columns [date, index_ticker, adj_close, return].
+    The `index_ticker` column identifies which index each row belongs to.
+    """
+    if index_tickers is None:
+        index_tickers = [NASDAQ_INDEX_TICKER]
 
-    df = hist[["Close"]].reset_index()
-    df.columns = ["date", "adj_close"]
-    df["date"] = pd.to_datetime(df["date"]).dt.tz_localize(None)
-    df = df.sort_values("date").reset_index(drop=True)
+    dfs = []
+    for idx_ticker in index_tickers:
+        print(f"Downloading index {idx_ticker}")
+        hist = yf.Ticker(idx_ticker).history(
+            start=start_date, end=end_date, auto_adjust=True,
+        )
+        if hist.empty:
+            print(f"  WARN: no data for {idx_ticker}")
+            continue
+        df = hist[["Close"]].reset_index()
+        df.columns = ["date", "adj_close"]
+        df["date"] = pd.to_datetime(df["date"]).dt.tz_localize(None)
+        df["index_ticker"] = idx_ticker
+        df = df.sort_values("date").reset_index(drop=True)
+        dfs.append(df)
 
-    return df
+    if not dfs:
+        raise RuntimeError("Failed to download any index data.")
+
+    result = pd.concat(dfs, ignore_index=True)
+    result["return"] = result.groupby("index_ticker")["adj_close"].pct_change()
+    return result.dropna(subset=["return"]).reset_index(drop=True)
 
 
 def build_market_returns(
@@ -174,9 +195,15 @@ def build_market_returns(
     start_date = earliest_event - pd.Timedelta(days=DOWNLOAD_BUFFER_DAYS)
     end_date = latest_event + pd.Timedelta(days=30)
 
+    # Determine which indices to download (one per exchange in the metadata)
+    if "market_index" in meta.columns:
+        index_tickers = sorted(meta["market_index"].dropna().unique().tolist())
+    else:
+        index_tickers = [NASDAQ_INDEX_TICKER]
+
     # --- Download ---
     stocks_raw = download_stock_prices(tickers, start_date, end_date)
-    index_raw = download_index_prices(start_date, end_date)
+    index_raw = download_index_prices(start_date, end_date, index_tickers=index_tickers)
 
     # Save raw price files (useful for debugging)
     stocks_raw.to_csv(prices_raw_output, index=False)
@@ -184,22 +211,20 @@ def build_market_returns(
     print(f"Saved raw prices → {prices_raw_output}  ({len(stocks_raw)} rows)")
 
     # --- Compute returns ---
-    # Simple daily return: R_t = (P_t / P_{t-1}) - 1
-    # pct_change() does this in one step; first row per ticker is NaN (no prior day)
     stock_returns = _compute_returns(stocks_raw, ticker_col="ticker")
-    index_returns = _compute_returns(index_raw)
-
-    # Drop the initial NaN row (first day per ticker has no prior price)
     stock_returns = stock_returns.dropna(subset=["return"]).reset_index(drop=True)
-    index_returns = index_returns.dropna(subset=["return"]).reset_index(drop=True)
+
+    # index_raw already has `return` and `index_ticker` columns from download_index_prices()
+    index_returns = index_raw
 
     # Save
     stock_returns.to_csv(stock_output, index=False)
     index_returns.to_csv(index_output, index=False)
     print(f"Saved stock returns  → {stock_output}  ({len(stock_returns)} rows)")
     print(f"Saved index returns  → {index_output}  ({len(index_returns)} rows)")
+    if "index_ticker" in index_returns.columns:
+        print(f"  Indices downloaded: {sorted(index_returns['index_ticker'].unique())}")
 
-    # Quick sanity check
     null_count = stock_returns["return"].isna().sum()
     assert null_count == 0, f"Unexpected NaN returns: {null_count}"
 

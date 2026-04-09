@@ -48,7 +48,7 @@ def build_ngram_matrix(
     max_features: int = 500,
     min_df: int = 2,
 ) -> tuple[np.ndarray, list[str], CountVectorizer]:
-    """Build a count-based n-gram feature matrix from a list of transcripts.
+    """Build a count-based n-gram feature matrix from a list of transcripts. Corpus is global.
 
     Parameters
     ----------
