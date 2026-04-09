@@ -1,4 +1,7 @@
-.PHONY: pipeline serve clean install test
+.PHONY: pipeline serve clean install test lint all
+
+# ── Run everything: pipeline then serve ──────────────────────────────────────
+all: pipeline serve
 
 # ── Install pipeline dependencies ────────────────────────────────────────────
 install:
@@ -63,6 +66,10 @@ serve:
 # ── Run unit tests ───────────────────────────────────────────────────────────
 test:
 	pytest tests/ -v --tb=short --cov --cov-report=term-missing
+
+# ── Lint ────────────────────────────────────────────────────────────────────
+lint:
+	flake8 frontend/app.py scripts/ notebooks/Data_Modelling/ tests/ --max-line-length=120
 
 # ── Clean generated data ─────────────────────────────────────────────────────
 clean:
