@@ -1,9 +1,9 @@
 import re
+from collections import Counter
 
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-import plotly.graph_objects as go  # noqa: F401
 from pathlib import Path
 
 RESULTS_DIR = Path(__file__).resolve().parents[1] / "outputs" / "results"
@@ -76,8 +76,6 @@ def score_finbert(text: str) -> dict:
         return {"finbert_neg_mean": 0.0, "finbert_pos_mean": 0.0, "finbert_neu_mean": 0.0}
 
     all_scores = clf(sentences, batch_size=16)
-
-    from collections import Counter
 
     sums: Counter = Counter()
     n = 0
