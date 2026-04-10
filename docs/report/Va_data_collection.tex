@@ -1,0 +1,102 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{amsmath}
+\usepackage{hyperref}
+\usepackage{parskip}
+\usepackage{booktabs}
+
+\title{\textbf{Data Collection \& Cleaning}\\[0.3em]
+\large Part V(a) --- Modelling Report\\
+Asymmetric Sentiment Effects in Earnings Calls}
+\author{NLP Course --- Group Project}
+\date{}
+
+\begin{document}
+\maketitle
+
+\section{Overview}
+
+The dataset combines two transcript corpora with daily stock price data from Yahoo Finance.
+The goal was to get enough events to run a meaningful event study while keeping
+the sample homogeneous enough that a single sentiment-return model makes sense.
+
+\section{Transcript Sources}
+
+\subsection{Thomson Reuters StreetEvents (Primary)}
+
+The primary source is a set of 188 earnings call transcripts for 10 NASDAQ-listed
+technology firms covering 2016--2020.
+Tickers: AAPL, AMZN, GOOG, META, MSFT, NFLX, NVDA, TSLA, CRM, AMD.
+Files follow the naming convention \texttt{YYYY-Mon-DD-TICKER.txt}.
+
+\subsection{Kaggle cleaned\_ECTs (Supplementary)}
+
+To extend coverage and date range, we added transcripts from the publicly available
+Kaggle \texttt{cleaned\_ECTs} corpus.
+This adds 9 technology-adjacent firms including IBM, Oracle, Salesforce, and Accenture,
+extending the date range back to 2007.
+Files follow the convention \texttt{YYYY\_Qn\_ticker\_processed.txt}.
+
+\subsection{Combined Dataset}
+
+After filtering both sources to technology and technology-adjacent firms only
+(to minimize cross-sector heterogeneity) and removing any duplicates,
+the combined corpus contains \textbf{620 events} across \textbf{19 tickers}
+spanning 2007--2025.
+
+\begin{center}
+\begin{tabular}{ll}
+\toprule
+Attribute & Value \\
+\midrule
+Total events & 620 \\
+Unique tickers & 19 \\
+Date range & 2007--2025 \\
+Training window & 2016--2018 \\
+Test window & 2019--2020 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\section{Market Price Data}
+
+Daily adjusted closing prices are downloaded from Yahoo Finance via \texttt{yfinance}
+for each of the 19 tickers plus their benchmark indices:
+\texttt{\^{}IXIC} (NASDAQ Composite) for NASDAQ-listed firms and
+\texttt{\^{}GSPC} (S\&P 500) for NYSE-listed firms.
+We download data from 2006 onward to ensure sufficient pre-event history for the
+estimation window.
+
+\section{Event Trading Day Assignment}
+
+A critical cleaning step is assigning each transcript to the correct trading day.
+An earnings call held at 10 PM Tuesday affects Wednesday's open; a call at 2 PM
+is priced the same day.  We parse each transcript header for a timestamp and apply:
+
+\begin{itemize}
+  \item Call before 4:00 PM ET on a trading day $\rightarrow$ event day = same calendar day.
+  \item Call at/after 4:00 PM ET, on a weekend, or on a market holiday
+        $\rightarrow$ event day = next business day.
+\end{itemize}
+
+If no header timestamp is found, we fall back to noon on the calendar date of the
+file (same-day assignment).  This rule is implemented in
+\texttt{src/nasdaq\_nlp/data/metadata/\_\_init\_\_.py}.
+
+\section{Data Quality}
+
+Events are dropped if the stock or benchmark has fewer than 60 valid trading days
+in the estimation window $[-120, -20]$ relative to the event day.
+This removes transcripts near IPO dates or during trading halts.
+The final 620 events all have complete estimation windows.
+
+\section{Code Reference}
+
+\begin{itemize}
+  \item \texttt{src/nasdaq\_nlp/data/loader/} --- transcript scanning for both sources.
+  \item \texttt{src/nasdaq\_nlp/data/metadata/} --- header parsing and event day assignment.
+  \item \texttt{src/nasdaq\_nlp/data/market/} --- price download and return computation.
+  \item Entry point: \texttt{make pipeline} or \texttt{notebooks/01\_data\_pipeline.ipynb}.
+\end{itemize}
+
+\end{document}

@@ -64,6 +64,32 @@ email address or ORCID}
 
 \maketitle
 
+\begin{abstract}
+Earnings calls produce unstructured text that carries tone and sentiment information
+beyond what headline financial metrics capture. This paper tests the asymmetry
+hypothesis: that negative language in earnings calls is a disproportionately stronger
+predictor of short-window stock returns than positive language, consistent with
+investor loss aversion. We build a corpus of 620 earnings call transcripts from
+19 technology-sector firms spanning 2007--2025, pair each transcript with
+event-study Cumulative Abnormal Returns (CAR) derived from an OLS market model,
+and extract sentiment features using the Loughran--McDonald financial lexicon,
+TF-IDF bag-of-words, and Word2Vec embeddings. A Wald test rejects the symmetry
+null at the 5\% significance level ($p = 0.042$) in our LM + controls specification,
+with $\hat\beta_{\text{neg}} = -8.92$ versus $\hat\beta_{\text{pos}} = +3.31$
+(a $2.7\times$ asymmetry ratio). The effect is concentrated in the Q\&A section
+of each call, where management language is least scripted. The simple LM lexicon
+achieves the best out-of-sample $R^2$ ($+0.057$), outperforming TF-IDF and
+Word2Vec despite its simplicity. Best classification AUC reaches 0.600.
+These results confirm that domain-adapted sentiment features carry genuine
+predictive information over market baselines, and that negative tone signals
+deserve disproportionate weight in earnings call analysis.
+\end{abstract}
+
+\begin{IEEEkeywords}
+Natural Language Processing, earnings calls, sentiment analysis, event study,
+Loughran--McDonald lexicon, asymmetry hypothesis, abnormal returns, TF-IDF, Word2Vec
+\end{IEEEkeywords}
+
 % ============================================================
 \section{Introduction}
 \label{sec:intro}
@@ -493,7 +519,7 @@ Source: \href{https://github.com/Tee-Time-Software-Solutions/NASDAQ-NLP/blob/mai
 
 We deploy the pipeline as an interactive Streamlit dashboard that allows stakeholders
 to explore model outputs without re-running the pipeline. The application is publicly
-accessible at \url{https://nasdaq-nlp.streamlit.app/} and the full source code,
+accessible at \url{https://tee-time-software-solutions-nasdaq-nlp-frontendapp-featu-pvfgpc.streamlit.app/} and the full source code,
 including all four analysis notebooks, is available at
 \url{https://github.com/Tee-Time-Software-Solutions/NASDAQ-NLP}.
 The application serves pre-computed CSVs produced by the modeling notebooks,
