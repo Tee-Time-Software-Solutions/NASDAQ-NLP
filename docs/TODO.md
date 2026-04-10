@@ -101,7 +101,10 @@
 
 
 ## QUESTIONBS
-1. How do I run FinBERT?
-9. Constrat frontend UI to results data in notebooks
-12. Validate wether data is standard (e.g., CAR and volatility)
-13. Analize why negative shit went wrong with respect to company specific business news (e.g., CISCO)
+1. Clean directory, notebooks 
+3. Content review (contrast with guidelines)
+4. Checking for redudnant, only code, errorneous conclusions
+2. Review paper
+5. Write reports 
+6. Merge to main + retry install + deployment 
+7. Provide zip folder 

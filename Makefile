@@ -38,9 +38,9 @@ pipeline:      ## Run the full data pipeline (metadata → market → features)
 
 ect-pipeline:  ## Import cleaned_ECTs dataset and run full pipeline on combined data
 	@echo "── Step 1: build ECT event metadata (resolves event dates via yfinance) ──"
-	uv run python -c "from nasdaq_nlp.data.ect_loader import build_ect_metadata; build_ect_metadata()"
+	uv run python -c "from nasdaq_nlp.data.loader.ect import build_ect_metadata; build_ect_metadata()"
 	@echo "── Step 2: merge with original metadata → combined_event_metadata.csv ──"
-	uv run python -c "from nasdaq_nlp.data.ect_loader import build_combined_metadata; build_combined_metadata()"
+	uv run python -c "from nasdaq_nlp.data.loader.ect import build_combined_metadata; build_combined_metadata()"
 	@echo "── Step 3: download market data for all tickers + indices ──"
 	uv run python -c "from pathlib import Path; from nasdaq_nlp.data.market import build_market_returns; build_market_returns(Path('outputs/processed/combined_event_metadata.csv'))"
 	@echo "── Step 4: compute market model + CAR for all events ──"

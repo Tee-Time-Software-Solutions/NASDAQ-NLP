@@ -27,7 +27,8 @@ from pathlib import Path
 import pandas as pd
 
 from nasdaq_nlp.config import DATASET_DIR, EVENT_METADATA_PATH, ensure_output_dirs
-from nasdaq_nlp.data.loader import TranscriptRecord, scan_transcripts
+# NOTE: loader imports are done lazily inside functions to avoid circular imports
+# (loader → ect → metadata.schemas → metadata.__init__ → loader)
 
 # Re-export schema so callers can import from this package
 from nasdaq_nlp.data.metadata.schemas import (
@@ -143,7 +144,7 @@ def assign_event_trading_day(call_dt_et: datetime) -> datetime:
 # Build one metadata row (validated via Pydantic)
 # ---------------------------------------------------------------------------
 
-def _record_to_metadata_row(record: TranscriptRecord) -> EventMetadataRecord:
+def _record_to_metadata_row(record: "TranscriptRecord") -> EventMetadataRecord:
     """Convert one TranscriptRecord into a validated EventMetadataRecord."""
     if not record.raw_text:
         record.load()
@@ -202,6 +203,7 @@ def build_event_metadata(
     """
     ensure_output_dirs()
 
+    from nasdaq_nlp.data.loader.original import scan_original_transcripts as scan_transcripts
     records = scan_transcripts(dataset_dir)
     print(f"Found {len(records)} transcripts across {len({r.ticker for r in records})} tickers")
 

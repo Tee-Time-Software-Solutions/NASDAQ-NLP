@@ -12,8 +12,6 @@ import numpy as np
 import pandas as pd
 
 from nasdaq_nlp.config import RESULTS_DIR
-from nasdaq_nlp.models.classifiers import results_to_df as clf_results_to_df
-from nasdaq_nlp.models.regression import RegressionResult, results_to_df
 
 
 # ---------------------------------------------------------------------------
@@ -58,8 +56,8 @@ def _legend(cmap: dict) -> list:
 # ---------------------------------------------------------------------------
 
 def plot_benchmark(
-    reg_results: list[RegressionResult],
-    clf_results: list[dict],
+    reg_df: "pd.DataFrame",
+    clf_df: "pd.DataFrame",
     save_path: Path = RESULTS_DIR / "benchmark_plots.png",
 ) -> Path:
     """Produce the 6-panel benchmark figure and save to disk.
@@ -75,19 +73,16 @@ def plot_benchmark(
 
     Parameters
     ----------
-    reg_results : list of RegressionResult namedtuples (from regression.py)
-    clf_results : list of dicts (from classifiers.py)
-    save_path   : where to write the PNG
+    reg_df    : benchmark_table.csv as a DataFrame
+    clf_df    : classification_results.csv as a DataFrame
+    save_path : where to write the PNG
 
     Returns
     -------
     Path to the saved figure.
     """
-    reg_df = results_to_df(reg_results, metrics=["train_r2", "test_r2", "oos_r2", "mae", "wald_p"])
-    reg_03 = reg_df[reg_df["target"] == "car_03"].reset_index(drop=True)
+    reg_03  = reg_df[reg_df["target"] == "car_03"].reset_index(drop=True)
     wald_df = reg_03[reg_03["wald_p"].notna()].reset_index(drop=True)
-
-    clf_df = clf_results_to_df(clf_results, metrics=["train_accuracy", "test_accuracy", "test_f1", "test_auc"])
 
     fig, axes = plt.subplots(3, 2, figsize=(16, 15))
     fig.suptitle("Benchmark: Regression & Classification", fontsize=14, fontweight="bold", y=1.01)

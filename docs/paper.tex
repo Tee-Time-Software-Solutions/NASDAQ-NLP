@@ -451,10 +451,11 @@ LM Q\&A    & CAR$_{[0,1]}$ & $0.692$ & --- \\
 \FloatBarrier
 \subsection{Classification Results}
 
-Table~\ref{tab:clf} reports direction-prediction metrics. The best classifier is
-All [MLP] with AUC $= 0.592$; TF-IDF [Tree] achieves the highest accuracy at $55.6\%$.
-All models exceed the 50\% random baseline in accuracy, though F1 scores reveal
-class imbalance challenges (the majority class is positive CAR events in the test window).
+Table~\ref{tab:clf} reports direction-prediction metrics. The best classifier by AUC is
+TF-IDF + LM + Controls [RF] at $0.600$; TF-IDF [NaiveBayes] achieves the highest accuracy
+at $59.6\%$. All TF-IDF-based models exceed the 50\% random baseline in accuracy.
+LM-only classifiers show lower accuracy but higher F1, reflecting the class imbalance
+in the test window (positive CAR events dominate 2019--2020).
 
 \begin{table}[htbp]
 \caption{Classification Results (CAR$_{[0,3]} > 0$, Test Set 2019--2020)}
@@ -464,11 +465,11 @@ class imbalance challenges (the majority class is positive CAR events in the tes
 \toprule
 Model & Accuracy & F1 & AUC \\
 \midrule
-TF-IDF [Tree]               & $\mathbf{55.6\%}$ & $0.291$ & $0.544$ \\
-TF-IDF [NaiveBayes]         & $55.1\%$ & $0.250$ & $0.533$ \\
-TF-IDF + LM [LogReg]        & $54.0\%$ & $0.307$ & $0.520$ \\
-LM Lexicon [LogReg]         & $45.5\%$ & $0.625$ & $0.508$ \\
-All features [MLP]          & $47.1\%$ & $0.609$ & $\mathbf{0.592}$ \\
+TF-IDF + LM + Controls [RF] & $\mathbf{59.6\%}$ & $0.553$ & $\mathbf{0.600}$ \\
+TF-IDF [NaiveBayes]         & $59.6\%$           & $0.632$ & $0.588$ \\
+TF-IDF [RF]                  & $51.9\%$           & $0.468$ & $0.563$ \\
+TF-IDF [LogReg]              & $51.9\%$           & $0.590$ & $0.578$ \\
+LM Lexicon [LogReg]          & $45.5\%$           & $0.625$ & $0.508$ \\
 \bottomrule
 \end{tabular}
 \end{table}
