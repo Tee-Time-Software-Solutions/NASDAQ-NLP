@@ -1,5 +1,5 @@
 .DEFAULT_GOAL := help
-.PHONY: help install pipeline finbert notebooks serve lint clean format
+.PHONY: help install pipeline finbert notebooks serve lint clean format test all
 
 # ── Python / UV ──────────────────────────────────────────────────────────────
 # UV must be installed:  curl -LsSf https://astral.sh/uv/install.sh | sh
@@ -10,6 +10,9 @@ help:          ## Show this help message
 
 install:       ## Create venv and install all dependencies via UV
 	uv sync
+
+# ── Run everything: pipeline then serve ─────────────────────────────────────
+all: pipeline serve  ## Run full pipeline then launch dashboard
 
 # ── Data pipeline ────────────────────────────────────────────────────────────
 # Runs each pipeline step in order, writing CSVs to outputs/processed/.
@@ -82,11 +85,19 @@ notebooks:     ## Execute all 4 notebooks headlessly (requires pipeline to run f
 serve:         ## Launch the Streamlit dashboard (frontend/)
 	uv run streamlit run frontend/app.py
 
+# ── Testing ──────────────────────────────────────────────────────────────────
+test:          ## Run unit tests with coverage
+	pytest tests/ -v --tb=short --cov --cov-report=term-missing
+
 # ── Code quality ─────────────────────────────────────────────────────────────
-lint:          ## Run ruff linter + formatter check on src/
+lint:          ## Run ruff linter + formatter check
 	uv run ruff check src/
 	uv run ruff format --check src/
 
-format:        ## Auto-fix lint issues and reformat src/
+format:        ## Auto-fix lint issues and reformat
 	uv run ruff check --fix src/
 	uv run ruff format src/
+
+# ── Clean ────────────────────────────────────────────────────────────────────
+clean:         ## Remove generated data and outputs
+	rm -rf outputs/processed/ outputs/results/ outputs/logs/

@@ -226,3 +226,7 @@ venv/
 notebooks/executed/
 
 uv.lock
+
+# outputs (keep results for Streamlit deployment)
+outputs/
+!outputs/results/
