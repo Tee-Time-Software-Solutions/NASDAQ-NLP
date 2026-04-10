@@ -40,19 +40,15 @@ from sklearn.linear_model import Ridge
 from sklearn.neural_network import MLPRegressor
 
 from nasdaq_nlp.config import (
-    ASYMMETRY_RESULTS_PATH,
-    BENCHMARK_TABLE_PATH,
     EMBEDDINGS_PATH,
     EVENT_STUDY_PATH,
     FINBERT_FEATURES_PATH,
     LEXICON_FEATURES_PATH,
+    TEST_YEARS,
     TFIDF_FEATURES_PATH,
     TRAIN_YEARS,
-    TEST_YEARS,
-    ensure_output_dirs,
 )
-from nasdaq_nlp.evaluation.metrics import r_squared, oos_r_squared
-
+from nasdaq_nlp.evaluation.metrics import oos_r_squared, r_squared
 
 # ---------------------------------------------------------------------------
 # Feature set registry
@@ -64,21 +60,21 @@ from nasdaq_nlp.evaluation.metrics import r_squared, oos_r_squared
 # "controls" also triggers construction of year-dummy columns at runtime.
 
 FEATURE_SETS: dict[str, list[str]] = {
-    "lexicon":      ["neg_rate", "pos_rate"],
+    "lexicon": ["neg_rate", "pos_rate"],
     "lexicon_pres": ["neg_rate_pres", "pos_rate_pres"],  # management prepared remarks only
-    "lexicon_qa":   ["neg_rate_qa",   "pos_rate_qa"],    # analyst Q&A only (more candid)
-    "finbert":      ["finbert_neg_mean", "finbert_pos_mean"],
-    "controls":     ["pre_vol"],   # year dummies added dynamically
-    "tfidf":        [],            # resolved at runtime from df column names
-    "embeddings":   [],            # resolved at runtime from df column names
+    "lexicon_qa": ["neg_rate_qa", "pos_rate_qa"],  # analyst Q&A only (more candid)
+    "finbert": ["finbert_neg_mean", "finbert_pos_mean"],
+    "controls": ["pre_vol"],  # year dummies added dynamically
+    "tfidf": [],  # resolved at runtime from df column names
+    "embeddings": [],  # resolved at runtime from df column names
 }
 
 # Pairs eligible for the Wald asymmetry test.
 # If both columns are present in the active feature set, the test runs automatically.
 _ASYMMETRY_PAIRS = [
-    ("neg_rate",         "pos_rate"),
-    ("neg_rate_pres",    "pos_rate_pres"),
-    ("neg_rate_qa",      "pos_rate_qa"),
+    ("neg_rate", "pos_rate"),
+    ("neg_rate_pres", "pos_rate_pres"),
+    ("neg_rate_qa", "pos_rate_qa"),
     ("finbert_neg_mean", "finbert_pos_mean"),
 ]
 
@@ -90,10 +86,10 @@ _ASYMMETRY_PAIRS = [
 # Others → sklearn-compatible (fit/predict interface, no p-values)
 
 REGRESSORS: dict[str, object] = {
-    "OLS":   "statsmodels",
+    "OLS": "statsmodels",
     "Ridge": lambda: Ridge(alpha=1.0),
-    "RF":    lambda: RandomForestRegressor(n_estimators=100, random_state=42),
-    "MLP":   lambda: MLPRegressor(hidden_layer_sizes=(64, 32), max_iter=1000, random_state=42),
+    "RF": lambda: RandomForestRegressor(n_estimators=100, random_state=42),
+    "MLP": lambda: MLPRegressor(hidden_layer_sizes=(64, 32), max_iter=1000, random_state=42),
 }
 
 
@@ -101,32 +97,34 @@ REGRESSORS: dict[str, object] = {
 # Result container
 # ---------------------------------------------------------------------------
 
+
 class RegressionResult(NamedTuple):
-    model_name:    str
-    target:        str
+    model_name: str
+    target: str
     features_used: list[str]
-    n_train:       int
-    n_test:        int
-    coef:          pd.Series      # named coefficients (empty for non-linear models)
-    pvalues:       pd.Series      # p-values (empty for sklearn models)
-    train_r2:      float
-    test_r2:       float
-    oos_r2:        float
-    mae:           float          # mean absolute error on test set
-    rmse:          float          # root mean squared error on test set
-    wald_pvalue:   float | None   # asymmetry test p-value (OLS only)
-    sm_result:     object         # raw statsmodels result or None
+    n_train: int
+    n_test: int
+    coef: pd.Series  # named coefficients (empty for non-linear models)
+    pvalues: pd.Series  # p-values (empty for sklearn models)
+    train_r2: float
+    test_r2: float
+    oos_r2: float
+    mae: float  # mean absolute error on test set
+    rmse: float  # root mean squared error on test set
+    wald_pvalue: float | None  # asymmetry test p-value (OLS only)
+    sm_result: object  # raw statsmodels result or None
 
 
 # ---------------------------------------------------------------------------
 # Data loader
 # ---------------------------------------------------------------------------
 
+
 def load_modelling_dataset(
-    study_path:      Path = EVENT_STUDY_PATH,
-    lexicon_path:    Path = LEXICON_FEATURES_PATH,
-    tfidf_path:      Path = TFIDF_FEATURES_PATH,
-    finbert_path:    Path = FINBERT_FEATURES_PATH,
+    study_path: Path = EVENT_STUDY_PATH,
+    lexicon_path: Path = LEXICON_FEATURES_PATH,
+    tfidf_path: Path = TFIDF_FEATURES_PATH,
+    finbert_path: Path = FINBERT_FEATURES_PATH,
     embeddings_path: Path = EMBEDDINGS_PATH,
 ) -> pd.DataFrame:
     """Merge event study + all available feature CSVs into one modelling DataFrame.
@@ -151,7 +149,7 @@ def load_modelling_dataset(
     if not lexicon_path.exists():
         raise FileNotFoundError(f"Run build_lexicon_features() first: {lexicon_path}")
     study = study.merge(_load(lexicon_path), on=_merge_keys, how="left")
-    print(f"Lexicon features merged ✓")
+    print("Lexicon features merged ✓")
 
     # TF-IDF (optional)
     if tfidf_path.exists():
@@ -164,7 +162,7 @@ def load_modelling_dataset(
     # FinBERT (optional)
     if finbert_path.exists():
         study = study.merge(_load(finbert_path), on=_merge_keys, how="left")
-        print(f"FinBERT features merged ✓")
+        print("FinBERT features merged ✓")
     else:
         print(f"WARN: FinBERT not found at {finbert_path} — skipping")
         for col in ["finbert_pos_mean", "finbert_neg_mean", "finbert_neu_mean"]:
@@ -185,6 +183,7 @@ def load_modelling_dataset(
 # ---------------------------------------------------------------------------
 # Feature resolution
 # ---------------------------------------------------------------------------
+
 
 def resolve_features(
     df: pd.DataFrame,
@@ -240,6 +239,7 @@ def resolve_features(
 # Core experiment runners
 # ---------------------------------------------------------------------------
 
+
 def run_experiment(
     df: pd.DataFrame,
     feature_set_names: list[str],
@@ -278,19 +278,21 @@ def run_experiment(
 
     sub = df[["year"] + feature_cols + [target_col]].dropna()
     train_mask = sub["year"].isin(TRAIN_YEARS)
-    test_mask  = sub["year"].isin(TEST_YEARS)
+    test_mask = sub["year"].isin(TEST_YEARS)
 
     y_train = sub.loc[train_mask, target_col].values
-    y_test  = sub.loc[test_mask,  target_col].values
+    y_test = sub.loc[test_mask, target_col].values
     X_train = sub.loc[train_mask, feature_cols].values
-    X_test  = sub.loc[test_mask,  feature_cols].values
+    X_test = sub.loc[test_mask, feature_cols].values
 
     print(f"\n[{name}]  train={len(y_train)}, test={len(y_test)}, features={len(feature_cols)}")
 
     if regressor_name == "OLS":
         return _run_ols(name, feature_cols, X_train, X_test, y_train, y_test, target_col)
     else:
-        return _run_sklearn(name, feature_cols, X_train, X_test, y_train, y_test, target_col, regressor_name)
+        return _run_sklearn(
+            name, feature_cols, X_train, X_test, y_train, y_test, target_col, regressor_name
+        )
 
 
 def run_null_model(df: pd.DataFrame, target_col: str = "car_03") -> RegressionResult:
@@ -301,23 +303,28 @@ def run_null_model(df: pd.DataFrame, target_col: str = "car_03") -> RegressionRe
     """
     sub = df[[target_col, "year"]].dropna()
     train_mask = sub["year"].isin(TRAIN_YEARS)
-    test_mask  = sub["year"].isin(TEST_YEARS)
+    test_mask = sub["year"].isin(TEST_YEARS)
 
-    y_train    = sub.loc[train_mask, target_col].values
-    y_test     = sub.loc[test_mask,  target_col].values
+    y_train = sub.loc[train_mask, target_col].values
+    y_test = sub.loc[test_mask, target_col].values
     train_mean = float(np.mean(y_train))
-    y_pred     = np.full_like(y_test, fill_value=train_mean)
+    y_pred = np.full_like(y_test, fill_value=train_mean)
 
     return RegressionResult(
-        model_name="Null (mean)", target=target_col, features_used=[],
-        n_train=int(train_mask.sum()), n_test=int(test_mask.sum()),
-        coef=pd.Series({"const": train_mean}), pvalues=pd.Series(dtype=float),
+        model_name="Null (mean)",
+        target=target_col,
+        features_used=[],
+        n_train=int(train_mask.sum()),
+        n_test=int(test_mask.sum()),
+        coef=pd.Series({"const": train_mean}),
+        pvalues=pd.Series(dtype=float),
         train_r2=0.0,
         test_r2=r_squared(y_test, y_pred),
         oos_r2=oos_r_squared(y_train, y_test, y_pred),
         mae=float(np.mean(np.abs(y_test - y_pred))),
         rmse=float(np.sqrt(np.mean((y_test - y_pred) ** 2))),
-        wald_pvalue=None, sm_result=None,
+        wald_pvalue=None,
+        sm_result=None,
     )
 
 
@@ -332,13 +339,13 @@ def _run_ols(
 ) -> RegressionResult:
     """Statsmodels OLS with HC3 heteroskedasticity-robust standard errors."""
     X_train_c = sm.add_constant(X_train, has_constant="add")
-    X_test_c  = sm.add_constant(X_test,  has_constant="add")
+    X_test_c = sm.add_constant(X_test, has_constant="add")
 
     # HC3 robust errors: correct for non-constant variance in financial returns
     ols = sm.OLS(y_train, X_train_c).fit(cov_type="HC3")
 
     coef_names = ["const"] + feature_cols
-    coef    = pd.Series(ols.params,  index=coef_names)
+    coef = pd.Series(ols.params, index=coef_names)
     pvalues = pd.Series(ols.pvalues, index=coef_names)
 
     # Wald test: H0: β_neg + β_pos = 0  (symmetric sentiment effect)
@@ -352,27 +359,34 @@ def _run_ols(
                 R[neg_idx] = 1
                 R[pos_idx] = 1
                 wald_p = float(ols.t_test(R).pvalue)
-                print(f"  Wald: β_neg={coef.iloc[neg_idx]:.4f}, "
-                      f"β_pos={coef.iloc[pos_idx]:.4f}, "
-                      f"p={wald_p:.4f}  "
-                      f"{'→ ASYMMETRIC ✓' if wald_p < 0.10 else '→ symmetric'}")
+                print(
+                    f"  Wald: β_neg={coef.iloc[neg_idx]:.4f}, "
+                    f"β_pos={coef.iloc[pos_idx]:.4f}, "
+                    f"p={wald_p:.4f}  "
+                    f"{'→ ASYMMETRIC ✓' if wald_p < 0.10 else '→ symmetric'}"
+                )
             except Exception as e:
                 print(f"  WARN: Wald test failed: {e}")
             break  # only test first matching pair
 
     y_pred_train = ols.predict(X_train_c)
-    y_pred_test  = ols.predict(X_test_c)
+    y_pred_test = ols.predict(X_test_c)
 
     return RegressionResult(
-        model_name=name, target=target_col, features_used=feature_cols,
-        n_train=len(y_train), n_test=len(y_test),
-        coef=coef, pvalues=pvalues,
+        model_name=name,
+        target=target_col,
+        features_used=feature_cols,
+        n_train=len(y_train),
+        n_test=len(y_test),
+        coef=coef,
+        pvalues=pvalues,
         train_r2=r_squared(y_train, y_pred_train),
-        test_r2=r_squared(y_test,   y_pred_test),
+        test_r2=r_squared(y_test, y_pred_test),
         oos_r2=oos_r_squared(y_train, y_test, y_pred_test),
         mae=float(np.mean(np.abs(y_test - y_pred_test))),
         rmse=float(np.sqrt(np.mean((y_test - y_pred_test) ** 2))),
-        wald_pvalue=wald_p, sm_result=ols,
+        wald_pvalue=wald_p,
+        sm_result=ols,
     )
 
 
@@ -391,27 +405,36 @@ def _run_sklearn(
     model.fit(X_train, y_train)
 
     y_pred_train = model.predict(X_train)
-    y_pred_test  = model.predict(X_test)
+    y_pred_test = model.predict(X_test)
 
-    coef = (pd.Series(model.coef_, index=feature_cols)
-            if hasattr(model, "coef_") else pd.Series(dtype=float))
+    coef = (
+        pd.Series(model.coef_, index=feature_cols)
+        if hasattr(model, "coef_")
+        else pd.Series(dtype=float)
+    )
 
     return RegressionResult(
-        model_name=name, target=target_col, features_used=feature_cols,
-        n_train=len(y_train), n_test=len(y_test),
-        coef=coef, pvalues=pd.Series(dtype=float),
+        model_name=name,
+        target=target_col,
+        features_used=feature_cols,
+        n_train=len(y_train),
+        n_test=len(y_test),
+        coef=coef,
+        pvalues=pd.Series(dtype=float),
         train_r2=r_squared(y_train, y_pred_train),
-        test_r2=r_squared(y_test,   y_pred_test),
+        test_r2=r_squared(y_test, y_pred_test),
         oos_r2=oos_r_squared(y_train, y_test, y_pred_test),
         mae=float(np.mean(np.abs(y_test - y_pred_test))),
         rmse=float(np.sqrt(np.mean((y_test - y_pred_test) ** 2))),
-        wald_pvalue=None, sm_result=None,
+        wald_pvalue=None,
+        sm_result=None,
     )
 
 
 # ---------------------------------------------------------------------------
 # Time-series cross-validation
 # ---------------------------------------------------------------------------
+
 
 def run_timeseries_cv(
     df: pd.DataFrame,
@@ -457,21 +480,21 @@ def run_timeseries_cv(
         raise ValueError(f"Need ≥2 years of data, got: {all_years}")
 
     fold_rows = []
-    all_y_test_pooled:  list[np.ndarray] = []
-    all_y_pred_pooled:  list[np.ndarray] = []
+    all_y_test_pooled: list[np.ndarray] = []
+    all_y_pred_pooled: list[np.ndarray] = []
     all_y_train_pooled: list[np.ndarray] = []
 
     for i in range(1, len(all_years)):
         train_years = all_years[:i]
-        test_year   = all_years[i]
+        test_year = all_years[i]
 
         train_mask = sub["year"].isin(train_years)
-        test_mask  = sub["year"] == test_year
+        test_mask = sub["year"] == test_year
 
         y_train = sub.loc[train_mask, target_col].values
-        y_test  = sub.loc[test_mask,  target_col].values
+        y_test = sub.loc[test_mask, target_col].values
         X_train = sub.loc[train_mask, feature_cols].values
-        X_test  = sub.loc[test_mask,  feature_cols].values
+        X_test = sub.loc[test_mask, feature_cols].values
 
         if len(y_train) < 5 or len(y_test) < 3:
             continue  # skip folds with too few observations
@@ -479,8 +502,9 @@ def run_timeseries_cv(
         # Fit and predict using the same backend as run_experiment
         if regressor_name == "OLS":
             import statsmodels.api as sm
+
             X_train_c = sm.add_constant(X_train, has_constant="add")
-            X_test_c  = sm.add_constant(X_test,  has_constant="add")
+            X_test_c = sm.add_constant(X_test, has_constant="add")
             ols = sm.OLS(y_train, X_train_c).fit(cov_type="HC3")
             y_pred = ols.predict(X_test_c)
         else:
@@ -491,15 +515,17 @@ def run_timeseries_cv(
         fold_oos = oos_r_squared(y_train, y_test, y_pred)
         fold_mae = float(np.mean(np.abs(y_test - y_pred)))
 
-        fold_rows.append({
-            "fold":        i,
-            "train_years": f"{train_years[0]}–{train_years[-1]}",
-            "test_year":   test_year,
-            "n_train":     len(y_train),
-            "n_test":      len(y_test),
-            "oos_r2":      round(fold_oos, 4),
-            "mae":         round(fold_mae, 4),
-        })
+        fold_rows.append(
+            {
+                "fold": i,
+                "train_years": f"{train_years[0]}–{train_years[-1]}",
+                "test_year": test_year,
+                "n_train": len(y_train),
+                "n_test": len(y_test),
+                "oos_r2": round(fold_oos, 4),
+                "mae": round(fold_mae, 4),
+            }
+        )
 
         all_y_train_pooled.append(y_train)
         all_y_test_pooled.append(y_test)
@@ -507,20 +533,22 @@ def run_timeseries_cv(
 
     # Pooled OOS R² across all folds
     y_train_all = np.concatenate(all_y_train_pooled)
-    y_test_all  = np.concatenate(all_y_test_pooled)
-    y_pred_all  = np.concatenate(all_y_pred_pooled)
-    pooled_oos  = oos_r_squared(y_train_all, y_test_all, y_pred_all)
-    pooled_mae  = float(np.mean(np.abs(y_test_all - y_pred_all)))
+    y_test_all = np.concatenate(all_y_test_pooled)
+    y_pred_all = np.concatenate(all_y_pred_pooled)
+    pooled_oos = oos_r_squared(y_train_all, y_test_all, y_pred_all)
+    pooled_mae = float(np.mean(np.abs(y_test_all - y_pred_all)))
 
-    fold_rows.append({
-        "fold":        "pooled",
-        "train_years": "all folds",
-        "test_year":   "all folds",
-        "n_train":     len(y_train_all),
-        "n_test":      len(y_test_all),
-        "oos_r2":      round(pooled_oos, 4),
-        "mae":         round(pooled_mae, 4),
-    })
+    fold_rows.append(
+        {
+            "fold": "pooled",
+            "train_years": "all folds",
+            "test_year": "all folds",
+            "n_train": len(y_train_all),
+            "n_test": len(y_test_all),
+            "oos_r2": round(pooled_oos, 4),
+            "mae": round(pooled_mae, 4),
+        }
+    )
 
     result_df = pd.DataFrame(fold_rows)
     print(f"\n[{name}] Time-series CV results:")
@@ -552,18 +580,20 @@ def results_to_df(
     """
     all_rows = []
     for r in results:
-        all_rows.append({
-            "model":    r.model_name,
-            "target":   r.target,
-            "n_train":  r.n_train,
-            "n_test":   r.n_test,
-            "train_r2": round(r.train_r2, 4),
-            "test_r2":  round(r.test_r2,  4),
-            "oos_r2":   round(r.oos_r2,   4),
-            "mae":      round(r.mae,       4),
-            "rmse":     round(r.rmse,      4),
-            "wald_p":   round(r.wald_pvalue, 4) if r.wald_pvalue is not None else None,
-        })
+        all_rows.append(
+            {
+                "model": r.model_name,
+                "target": r.target,
+                "n_train": r.n_train,
+                "n_test": r.n_test,
+                "train_r2": round(r.train_r2, 4),
+                "test_r2": round(r.test_r2, 4),
+                "oos_r2": round(r.oos_r2, 4),
+                "mae": round(r.mae, 4),
+                "rmse": round(r.rmse, 4),
+                "wald_p": round(r.wald_pvalue, 4) if r.wald_pvalue is not None else None,
+            }
+        )
     df = pd.DataFrame(all_rows)
     id_cols = ["model", "target", "n_train", "n_test"]
     metric_cols = [m for m in metrics if m in df.columns]

@@ -18,7 +18,6 @@ from typing import Literal
 
 from pydantic import BaseModel, field_validator
 
-
 # ---------------------------------------------------------------------------
 # Filename regexes
 # ---------------------------------------------------------------------------
@@ -37,6 +36,7 @@ ECT_FILENAME_RE = re.compile(
 # ---------------------------------------------------------------------------
 # Unified Pydantic model
 # ---------------------------------------------------------------------------
+
 
 class TranscriptRecord(BaseModel):
     """One transcript file from either dataset source.
@@ -59,19 +59,19 @@ class TranscriptRecord(BaseModel):
     day           : day-of-month 1–31
     """
 
-    ticker:       str
-    year:         int
-    quarter:      str        = ""
-    exchange:     str        = "NASDAQ"
-    market_index: str        = "^IXIC"
-    file_name:    str
-    file_path:    Path
-    source:       Literal["original", "ect"] = "original"
-    raw_text:     str        = ""
+    ticker: str
+    year: int
+    quarter: str = ""
+    exchange: str = "NASDAQ"
+    market_index: str = "^IXIC"
+    file_name: str
+    file_path: Path
+    source: Literal["original", "ect"] = "original"
+    raw_text: str = ""
 
     # Original-only
-    month_str:    str        = ""
-    day:          int        = 0
+    month_str: str = ""
+    day: int = 0
 
     model_config = {"arbitrary_types_allowed": True}
 
@@ -99,7 +99,7 @@ class TranscriptRecord(BaseModel):
     @field_validator("day")
     @classmethod
     def day_in_valid_range(cls, v: int) -> int:
-        if not (0 <= v <= 31):   # 0 is valid for ECT records (no exact day)
+        if not (0 <= v <= 31):  # 0 is valid for ECT records (no exact day)
             raise ValueError(f"day {v} out of range 0–31")
         return v
 

@@ -51,13 +51,14 @@ from nasdaq_nlp.config import (
 )
 from nasdaq_nlp.preprocessing.text import preprocess_transcript
 
-
 # ---------------------------------------------------------------------------
 # Dictionary loader
 # ---------------------------------------------------------------------------
 
 # Path to the LM master dictionary CSV in the dataset folder
-_LM_CSV_PATH = Path(__file__).parents[3] / "dataset" / "Loughran-McDonald_MasterDictionary_1993-2025.csv"
+_LM_CSV_PATH = (
+    Path(__file__).parents[3] / "dataset" / "Loughran-McDonald_MasterDictionary_1993-2025.csv"
+)
 
 
 def load_lm_dictionary(csv_path: Path | None = None) -> tuple[set[str], set[str]]:
@@ -135,7 +136,11 @@ def compute_lexicon_features(
     result = preprocess_transcript(raw_text, section=section, remove_stopwords=False)
 
     # Tokenise the processed text (already lowercased in preprocess_transcript)
-    tokens = _WORD_RE.findall(result["full_raw"] if section == "full" else result.get(f"{section}_raw", result["full_raw"]))
+    tokens = _WORD_RE.findall(
+        result["full_raw"]
+        if section == "full"
+        else result.get(f"{section}_raw", result["full_raw"])
+    )
     total_tokens = max(len(tokens), 1)  # avoid division by zero
 
     # Count matches against dictionary sets
@@ -157,6 +162,7 @@ def compute_lexicon_features(
 # ---------------------------------------------------------------------------
 # Pipeline function
 # ---------------------------------------------------------------------------
+
 
 def build_lexicon_features(
     study_path: Path = EVENT_STUDY_PATH,
@@ -193,36 +199,47 @@ def build_lexicon_features(
             continue
 
         # Compute all three sections in one transcript read
-        full  = compute_lexicon_features(file_path, section="full",
-                                         pos_words=pos_words, neg_words=neg_words)
-        pres  = compute_lexicon_features(file_path, section="presentation",
-                                         pos_words=pos_words, neg_words=neg_words)
-        qa    = compute_lexicon_features(file_path, section="qa",
-                                         pos_words=pos_words, neg_words=neg_words)
+        full = compute_lexicon_features(
+            file_path, section="full", pos_words=pos_words, neg_words=neg_words
+        )
+        pres = compute_lexicon_features(
+            file_path, section="presentation", pos_words=pos_words, neg_words=neg_words
+        )
+        qa = compute_lexicon_features(
+            file_path, section="qa", pos_words=pos_words, neg_words=neg_words
+        )
 
-        rows.append({
-            "ticker":            event["ticker"],
-            "file_name":         event["file_name"],
-            "event_trading_day": event["event_trading_day"],
-            # Full transcript
-            "total_tokens":  full["total_tokens"],
-            "neg_count":     full["neg_count"],
-            "pos_count":     full["pos_count"],
-            "neg_rate":      full["neg_rate"],
-            "pos_rate":      full["pos_rate"],
-            # Presentation section
-            "neg_rate_pres": pres["neg_rate"],
-            "pos_rate_pres": pres["pos_rate"],
-            # Q&A section
-            "neg_rate_qa":   qa["neg_rate"],
-            "pos_rate_qa":   qa["pos_rate"],
-        })
+        rows.append(
+            {
+                "ticker": event["ticker"],
+                "file_name": event["file_name"],
+                "event_trading_day": event["event_trading_day"],
+                # Full transcript
+                "total_tokens": full["total_tokens"],
+                "neg_count": full["neg_count"],
+                "pos_count": full["pos_count"],
+                "neg_rate": full["neg_rate"],
+                "pos_rate": full["pos_rate"],
+                # Presentation section
+                "neg_rate_pres": pres["neg_rate"],
+                "pos_rate_pres": pres["pos_rate"],
+                # Q&A section
+                "neg_rate_qa": qa["neg_rate"],
+                "pos_rate_qa": qa["pos_rate"],
+            }
+        )
 
     df = pd.DataFrame(rows)
     df.to_csv(output_path, index=False)
     print(f"Saved lexicon features → {output_path}  ({len(df)} rows)")
-    print(f"  Full    — Avg NegRate: {df['neg_rate'].mean():.4f}  PosRate: {df['pos_rate'].mean():.4f}")
-    print(f"  Pres    — Avg NegRate: {df['neg_rate_pres'].mean():.4f}  PosRate: {df['pos_rate_pres'].mean():.4f}")
-    print(f"  Q&A     — Avg NegRate: {df['neg_rate_qa'].mean():.4f}  PosRate: {df['pos_rate_qa'].mean():.4f}")
+    print(
+        f"  Full    — Avg NegRate: {df['neg_rate'].mean():.4f}  PosRate: {df['pos_rate'].mean():.4f}"
+    )
+    print(
+        f"  Pres    — Avg NegRate: {df['neg_rate_pres'].mean():.4f}  PosRate: {df['pos_rate_pres'].mean():.4f}"
+    )
+    print(
+        f"  Q&A     — Avg NegRate: {df['neg_rate_qa'].mean():.4f}  PosRate: {df['pos_rate_qa'].mean():.4f}"
+    )
 
     return df

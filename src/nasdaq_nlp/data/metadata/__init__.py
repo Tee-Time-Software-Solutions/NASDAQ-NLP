@@ -23,13 +23,17 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pandas as pd
 
 from nasdaq_nlp.config import DATASET_DIR, EVENT_METADATA_PATH, ensure_output_dirs
+
+if TYPE_CHECKING:
+    from nasdaq_nlp.data.loader.schemas import TranscriptRecord
+
 # NOTE: loader imports are done lazily inside functions to avoid circular imports
 # (loader → ect → metadata.schemas → metadata.__init__ → loader)
-
 # Re-export schema so callers can import from this package
 from nasdaq_nlp.data.metadata.schemas import (
     EASTERN,
@@ -52,6 +56,7 @@ __all__ = [
 # ---------------------------------------------------------------------------
 # Header datetime parser
 # ---------------------------------------------------------------------------
+
 
 def parse_header_datetime(raw_text: str) -> datetime | None:
     """Scan the first 20 lines of a transcript and extract the call datetime.
@@ -105,6 +110,7 @@ def parse_header_datetime(raw_text: str) -> datetime | None:
 # Event trading day assignment
 # ---------------------------------------------------------------------------
 
+
 def next_business_day(dt: datetime) -> datetime:
     """Return the next calendar day that is a NYSE trading day (date only)."""
     candidate = datetime(dt.year, dt.month, dt.day) + timedelta(days=1)
@@ -144,6 +150,7 @@ def assign_event_trading_day(call_dt_et: datetime) -> datetime:
 # Build one metadata row (validated via Pydantic)
 # ---------------------------------------------------------------------------
 
+
 def _record_to_metadata_row(record: "TranscriptRecord") -> EventMetadataRecord:
     """Convert one TranscriptRecord into a validated EventMetadataRecord."""
     if not record.raw_text:
@@ -165,8 +172,7 @@ def _record_to_metadata_row(record: "TranscriptRecord") -> EventMetadataRecord:
         )
     else:
         # Fallback: no parseable header — assume midday, same-day event
-        fallback_dt = datetime(record.year, month_num, record.day, 12, 0,
-                               tzinfo=EASTERN)
+        fallback_dt = datetime(record.year, month_num, record.day, 12, 0, tzinfo=EASTERN)
         event_day = assign_event_trading_day(fallback_dt)
         row_kwargs = dict(
             call_datetime_gmt=None,
@@ -191,6 +197,7 @@ def _record_to_metadata_row(record: "TranscriptRecord") -> EventMetadataRecord:
 # Pipeline entry point
 # ---------------------------------------------------------------------------
 
+
 def build_event_metadata(
     dataset_dir: Path = DATASET_DIR,
     output_path: Path = EVENT_METADATA_PATH,
@@ -204,6 +211,7 @@ def build_event_metadata(
     ensure_output_dirs()
 
     from nasdaq_nlp.data.loader.original import scan_original_transcripts as scan_transcripts
+
     records = scan_transcripts(dataset_dir)
     print(f"Found {len(records)} transcripts across {len({r.ticker for r in records})} tickers")
 

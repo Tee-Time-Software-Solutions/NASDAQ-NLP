@@ -32,8 +32,6 @@ Stopwords are removed only for the TF-IDF / Word2Vec models where they add noise
 from __future__ import annotations
 
 import re
-import string
-
 
 # ---------------------------------------------------------------------------
 # Boilerplate patterns to strip
@@ -95,9 +93,17 @@ def strip_header(text: str) -> str:
             # Check if the next non-empty line is a content section header
             for j in range(i + 1, min(i + 5, len(lines))):
                 next_line = lines[j].strip().upper()
-                if any(keyword in next_line for keyword in
-                       ["PRESENTATION", "QUESTIONS AND ANSWERS", "Q&A",
-                        "OVERVIEW", "FINANCIAL DATA", "CORPORATE PARTICIPANTS"]):
+                if any(
+                    keyword in next_line
+                    for keyword in [
+                        "PRESENTATION",
+                        "QUESTIONS AND ANSWERS",
+                        "Q&A",
+                        "OVERVIEW",
+                        "FINANCIAL DATA",
+                        "CORPORATE PARTICIPANTS",
+                    ]
+                ):
                     # Skip participant sections — they're just names
                     if "CORPORATE PARTICIPANTS" in next_line or "CONFERENCE CALL" in next_line:
                         continue
@@ -148,7 +154,7 @@ def split_sections(text: str) -> tuple[str, str]:
         return text, ""
 
     presentation = text[: match.start()].strip()
-    qa = text[match.start():].strip()
+    qa = text[match.start() :].strip()
     return presentation, qa
 
 
@@ -213,20 +219,82 @@ def tokenise_no_stopwords(text: str, stopwords: set[str] | None = None) -> list[
 # Minimal English stopwords — intentionally small to preserve financial terms
 # We do NOT use NLTK's full list because it would strip "uncertain", "risk", etc.
 _MINIMAL_STOPWORDS: set[str] = {
-    "a", "an", "the", "and", "or", "but", "is", "are", "was", "were",
-    "be", "been", "being", "have", "has", "had", "do", "does", "did",
-    "will", "would", "could", "should", "may", "might", "shall", "can",
-    "to", "of", "in", "for", "on", "with", "at", "by", "from", "as",
-    "into", "through", "during", "above", "below", "between",
-    "i", "we", "you", "he", "she", "it", "they", "our", "your", "their",
-    "this", "that", "these", "those", "so", "if", "then", "than", "not",
-    "no", "yes", "very", "also", "more", "some", "any",
+    "a",
+    "an",
+    "the",
+    "and",
+    "or",
+    "but",
+    "is",
+    "are",
+    "was",
+    "were",
+    "be",
+    "been",
+    "being",
+    "have",
+    "has",
+    "had",
+    "do",
+    "does",
+    "did",
+    "will",
+    "would",
+    "could",
+    "should",
+    "may",
+    "might",
+    "shall",
+    "can",
+    "to",
+    "of",
+    "in",
+    "for",
+    "on",
+    "with",
+    "at",
+    "by",
+    "from",
+    "as",
+    "into",
+    "through",
+    "during",
+    "above",
+    "below",
+    "between",
+    "i",
+    "we",
+    "you",
+    "he",
+    "she",
+    "it",
+    "they",
+    "our",
+    "your",
+    "their",
+    "this",
+    "that",
+    "these",
+    "those",
+    "so",
+    "if",
+    "then",
+    "than",
+    "not",
+    "no",
+    "yes",
+    "very",
+    "also",
+    "more",
+    "some",
+    "any",
 }
 
 
 # ---------------------------------------------------------------------------
 # High-level convenience function
 # ---------------------------------------------------------------------------
+
 
 def preprocess_transcript(
     raw_text: str,

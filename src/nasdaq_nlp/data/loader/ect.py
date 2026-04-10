@@ -27,7 +27,6 @@ Public API:
 
 from __future__ import annotations
 
-import re
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -49,9 +48,7 @@ __all__ = [
 # Dataset location
 # ---------------------------------------------------------------------------
 
-ECT_DATASET_DIR: Path = (
-    Path.home() / "Downloads" / "archive (1)" / "cleaned_ECTs_dataset"
-)
+ECT_DATASET_DIR: Path = Path.home() / "Downloads" / "archive (1)" / "cleaned_ECTs_dataset"
 ECT_METADATA_PATH: Path = PROCESSED_DIR / "ect_event_metadata.csv"
 
 # ---------------------------------------------------------------------------
@@ -60,54 +57,54 @@ ECT_METADATA_PATH: Path = PROCESSED_DIR / "ect_event_metadata.csv"
 
 COMPANY_TO_TICKER: dict[str, tuple[str, str]] = {
     # ── NASDAQ ───────────────────────────────────────────────────────────────
-    "AMD":            ("AMD",   "NASDAQ"),
-    "Adobe":          ("ADBE",  "NASDAQ"),
-    "Alphabet":       ("GOOGL", "NASDAQ"),
-    "Amazon":         ("AMZN",  "NASDAQ"),
-    "Apple":          ("AAPL",  "NASDAQ"),
-    "Cisco":          ("CSCO",  "NASDAQ"),
-    "Costco":         ("COST",  "NASDAQ"),
-    "META":           ("META",  "NASDAQ"),
-    "Microsoft":      ("MSFT",  "NASDAQ"),
-    "Nvidia":         ("NVDA",  "NASDAQ"),
-    "Lululemon":      ("LULU",  "NASDAQ"),
-    "PayPal":         ("PYPL",  "NASDAQ"),
-    "Booking":        ("BKNG",  "NASDAQ"),
-    "Qualcomm":       ("QCOM",  "NASDAQ"),
-    "Starbucks":      ("SBUX",  "NASDAQ"),
-    "Netflix":        ("NFLX",  "NASDAQ"),
-    "Intel":          ("INTC",  "NASDAQ"),
-    "Micron":         ("MU",    "NASDAQ"),
+    "AMD": ("AMD", "NASDAQ"),
+    "Adobe": ("ADBE", "NASDAQ"),
+    "Alphabet": ("GOOGL", "NASDAQ"),
+    "Amazon": ("AMZN", "NASDAQ"),
+    "Apple": ("AAPL", "NASDAQ"),
+    "Cisco": ("CSCO", "NASDAQ"),
+    "Costco": ("COST", "NASDAQ"),
+    "META": ("META", "NASDAQ"),
+    "Microsoft": ("MSFT", "NASDAQ"),
+    "Nvidia": ("NVDA", "NASDAQ"),
+    "Lululemon": ("LULU", "NASDAQ"),
+    "PayPal": ("PYPL", "NASDAQ"),
+    "Booking": ("BKNG", "NASDAQ"),
+    "Qualcomm": ("QCOM", "NASDAQ"),
+    "Starbucks": ("SBUX", "NASDAQ"),
+    "Netflix": ("NFLX", "NASDAQ"),
+    "Intel": ("INTC", "NASDAQ"),
+    "Micron": ("MU", "NASDAQ"),
     # ── NYSE ─────────────────────────────────────────────────────────────────
-    "IBM":            ("IBM",   "NYSE"),
-    "Oracle":         ("ORCL",  "NYSE"),
-    "Salesforce":     ("CRM",   "NYSE"),
-    "Accenture":      ("ACN",   "NYSE"),
+    "IBM": ("IBM", "NYSE"),
+    "Oracle": ("ORCL", "NYSE"),
+    "Salesforce": ("CRM", "NYSE"),
+    "Accenture": ("ACN", "NYSE"),
     # ── European / other (excluded — no reliable yfinance index coverage) ───
-    "ASML":           ("ASML",  "BOVESPA"),
-    "SAP":            ("SAP",   "DAX"),
-    "Siemens":        ("SIE",   "DAX"),
-    "Allianz":        ("ALV",   "DAX"),
-    "LVMH":           ("MC",    "CAC40"),
-    "TotalEnergies":  ("TTE",   "CAC40"),
-    "AXA":            ("CS",    "CAC40"),
-    "HSBC":           ("HSBA",  "FTSE100"),
-    "BP":             ("BP",    "FTSE100"),
-    "Shell":          ("SHEL",  "FTSE100"),
-    "Vodafone":       ("VOD",   "FTSE100"),
-    "Inditex":        ("ITX",   "IBEX35"),
-    "Banco_Santander":("SAN",   "IBEX35"),
+    "ASML": ("ASML", "BOVESPA"),
+    "SAP": ("SAP", "DAX"),
+    "Siemens": ("SIE", "DAX"),
+    "Allianz": ("ALV", "DAX"),
+    "LVMH": ("MC", "CAC40"),
+    "TotalEnergies": ("TTE", "CAC40"),
+    "AXA": ("CS", "CAC40"),
+    "HSBC": ("HSBA", "FTSE100"),
+    "BP": ("BP", "FTSE100"),
+    "Shell": ("SHEL", "FTSE100"),
+    "Vodafone": ("VOD", "FTSE100"),
+    "Inditex": ("ITX", "IBEX35"),
+    "Banco_Santander": ("SAN", "IBEX35"),
 }
 
 INDEX_FOR_EXCHANGE: dict[str, str | None] = {
-    "NASDAQ":  "^IXIC",
-    "NYSE":    "^GSPC",
-    "DAX":     "^GDAXI",
-    "CAC40":   "^FCHI",
+    "NASDAQ": "^IXIC",
+    "NYSE": "^GSPC",
+    "DAX": "^GDAXI",
+    "CAC40": "^FCHI",
     "FTSE100": "^FTSE",
-    "IBEX35":  "^IBEX",
-    "BOVESPA": None,   # unreliable yfinance coverage → excluded
-    "OMX":     None,
+    "IBEX35": "^IBEX",
+    "BOVESPA": None,  # unreliable yfinance coverage → excluded
+    "OMX": None,
 }
 
 _EXCLUDED_EXCHANGES = {k for k, v in INDEX_FOR_EXCHANGE.items() if v is None}
@@ -119,6 +116,7 @@ _QUARTER_REPORT_DATE = {"Q1": (4, 30), "Q2": (7, 31), "Q3": (10, 31), "Q4": (1, 
 # ---------------------------------------------------------------------------
 # Date helpers
 # ---------------------------------------------------------------------------
+
 
 def _next_trading_day(dt: datetime) -> datetime:
     while dt.weekday() >= 5 or datetime(dt.year, dt.month, dt.day) in TRADING_HOLIDAYS:
@@ -139,6 +137,7 @@ def _approx_event_date(year: int, quarter: str) -> datetime:
 def _yfinance_event_date(ticker: str, year: int, quarter: str) -> datetime | None:
     try:
         import yfinance as yf
+
         dates = yf.Ticker(ticker).get_earnings_dates(limit=40)
         if dates is None or dates.empty:
             return None
@@ -159,6 +158,7 @@ def _yfinance_event_date(ticker: str, year: int, quarter: str) -> datetime | Non
 # ---------------------------------------------------------------------------
 # Scanner — returns TranscriptRecord objects (same type as original source)
 # ---------------------------------------------------------------------------
+
 
 def scan_ect_transcripts(
     ect_dir: Path = ECT_DATASET_DIR,
@@ -190,18 +190,20 @@ def scan_ect_transcripts(
             m = ECT_FILENAME_RE.match(txt_file.name)
             if not m:
                 continue
-            year    = int(m.group("year"))
+            year = int(m.group("year"))
             quarter = f"Q{m.group('quarter')}"
-            records.append(TranscriptRecord(
-                ticker       = ticker,
-                year         = year,
-                quarter      = quarter,
-                exchange     = exchange,
-                market_index = market_index,
-                file_name    = txt_file.name,
-                file_path    = txt_file.resolve(),
-                source       = "ect",
-            ))
+            records.append(
+                TranscriptRecord(
+                    ticker=ticker,
+                    year=year,
+                    quarter=quarter,
+                    exchange=exchange,
+                    market_index=market_index,
+                    file_name=txt_file.name,
+                    file_path=txt_file.resolve(),
+                    source="ect",
+                )
+            )
 
     records.sort(key=lambda r: (r.ticker, r.year, r.quarter))
     return records
@@ -211,6 +213,7 @@ def scan_ect_transcripts(
 # Pipeline step: build ect_event_metadata.csv
 # ---------------------------------------------------------------------------
 
+
 def build_ect_metadata(
     ect_dir: Path = ECT_DATASET_DIR,
     output_path: Path = ECT_METADATA_PATH,
@@ -219,34 +222,35 @@ def build_ect_metadata(
     """Scan ECT transcripts → resolve event trading days → save CSV."""
     ensure_output_dirs()
     records = scan_ect_transcripts(ect_dir)
-    print(f"Found {len(records)} ECT transcripts across "
-          f"{len({r.ticker for r in records})} tickers")
+    print(f"Found {len(records)} ECT transcripts across {len({r.ticker for r in records})} tickers")
 
     rows = []
     for r in records:
         if use_yfinance:
             event_day = _yfinance_event_date(r.ticker, r.year, r.quarter)
-            source    = "yfinance" if event_day else "approx"
+            source = "yfinance" if event_day else "approx"
             event_day = event_day or _approx_event_date(r.year, r.quarter)
         else:
             event_day = _approx_event_date(r.year, r.quarter)
-            source    = "approx"
+            source = "approx"
 
-        rows.append({
-            "ticker":             r.ticker,
-            "file_name":          r.file_name,
-            "file_path":          str(r.file_path),
-            "year":               r.year,
-            "quarter":            r.quarter,
-            "exchange":           r.exchange,
-            "market_index":       r.market_index,
-            "event_trading_day":  event_day.strftime("%Y-%m-%d"),
-            "date_source":        source,
-            "call_datetime_gmt":  None,
-            "call_datetime_et":   None,
-            "call_time_et":       None,
-            "after_market_close": False,
-        })
+        rows.append(
+            {
+                "ticker": r.ticker,
+                "file_name": r.file_name,
+                "file_path": str(r.file_path),
+                "year": r.year,
+                "quarter": r.quarter,
+                "exchange": r.exchange,
+                "market_index": r.market_index,
+                "event_trading_day": event_day.strftime("%Y-%m-%d"),
+                "date_source": source,
+                "call_datetime_gmt": None,
+                "call_datetime_et": None,
+                "call_time_et": None,
+                "after_market_close": False,
+            }
+        )
 
     df = pd.DataFrame(rows)
     df["event_trading_day"] = pd.to_datetime(df["event_trading_day"])
@@ -264,6 +268,7 @@ def build_ect_metadata(
 # Pipeline step: combine original + ECT metadata
 # ---------------------------------------------------------------------------
 
+
 def build_combined_metadata(
     original_path: Path = PROCESSED_DIR / "event_metadata.csv",
     ect_path: Path = ECT_METADATA_PATH,
@@ -273,9 +278,9 @@ def build_combined_metadata(
     orig = pd.read_csv(original_path)
 
     _ticker_to_exchange = {t: ex for (t, ex) in COMPANY_TO_TICKER.values()}
-    orig["exchange"]     = orig["ticker"].map(_ticker_to_exchange).fillna("NASDAQ")
+    orig["exchange"] = orig["ticker"].map(_ticker_to_exchange).fillna("NASDAQ")
     orig["market_index"] = orig["exchange"].map(INDEX_FOR_EXCHANGE).fillna("^IXIC")
-    orig["date_source"]  = "original"
+    orig["date_source"] = "original"
 
     ect = pd.read_csv(ect_path)
     combined = pd.concat([orig, ect], ignore_index=True)
@@ -288,6 +293,8 @@ def build_combined_metadata(
     combined.reset_index(drop=True, inplace=True)
 
     combined.to_csv(output_path, index=False)
-    print(f"Combined metadata → {output_path}  "
-          f"({len(combined)} rows, {len(combined['ticker'].unique())} tickers)")
+    print(
+        f"Combined metadata → {output_path}  "
+        f"({len(combined)} rows, {len(combined['ticker'].unique())} tickers)"
+    )
     return combined

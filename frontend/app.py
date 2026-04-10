@@ -25,6 +25,7 @@ import streamlit as st
 _FINBERT_AVAILABLE = False
 try:
     import transformers  # noqa: F401
+
     _FINBERT_AVAILABLE = True
 except ImportError:
     pass
@@ -44,54 +45,60 @@ DATA_DIR = Path(__file__).parent / "data"
 # Data loaders — @st.cache_data so CSVs are read only once per session
 # ---------------------------------------------------------------------------
 
+
 @st.cache_data
 def load_event_study() -> pd.DataFrame:
-    df = pd.read_csv(DATA_DIR / "event_study_dataset.csv",
-                     parse_dates=["event_trading_day"])
+    df = pd.read_csv(DATA_DIR / "event_study_dataset.csv", parse_dates=["event_trading_day"])
     return df
+
 
 @st.cache_data
 def load_event_metadata() -> pd.DataFrame:
-    df = pd.read_csv(DATA_DIR / "event_metadata.csv",
-                     parse_dates=["event_trading_day"])
+    df = pd.read_csv(DATA_DIR / "event_metadata.csv", parse_dates=["event_trading_day"])
     return df
+
 
 @st.cache_data
 def load_lexicon() -> pd.DataFrame:
-    return pd.read_csv(DATA_DIR / "lexicon_features.csv",
-                       parse_dates=["event_trading_day"])
+    return pd.read_csv(DATA_DIR / "lexicon_features.csv", parse_dates=["event_trading_day"])
+
 
 @st.cache_data
 def load_benchmark() -> pd.DataFrame:
     return pd.read_csv(DATA_DIR / "benchmark_table.csv")
 
+
 @st.cache_data
 def load_asymmetry() -> pd.DataFrame:
     return pd.read_csv(DATA_DIR / "asymmetry_results.csv")
+
 
 @st.cache_data
 def load_tfidf_top_terms() -> pd.DataFrame:
     return pd.read_csv(DATA_DIR / "tfidf_top_terms.csv")
 
+
 @st.cache_data
 def load_sentiment_over_time() -> pd.DataFrame:
     return pd.read_csv(DATA_DIR / "sentiment_over_time.csv")
+
 
 @st.cache_data
 def load_ticker_model_summary() -> pd.DataFrame:
     return pd.read_csv(DATA_DIR / "ticker_model_summary.csv")
 
+
 # ---------------------------------------------------------------------------
 # Load all data
 # ---------------------------------------------------------------------------
-study    = load_event_study()
-meta     = load_event_metadata()
-lex      = load_lexicon()
-bench    = load_benchmark()
-asym     = load_asymmetry()
-top_terms= load_tfidf_top_terms()
-sot      = load_sentiment_over_time()
-ticker_mm= load_ticker_model_summary()
+study = load_event_study()
+meta = load_event_metadata()
+lex = load_lexicon()
+bench = load_benchmark()
+asym = load_asymmetry()
+top_terms = load_tfidf_top_terms()
+sot = load_sentiment_over_time()
+ticker_mm = load_ticker_model_summary()
 
 ALL_TICKERS = sorted(study["ticker"].unique().tolist())
 
@@ -99,19 +106,38 @@ ALL_TICKERS = sorted(study["ticker"].unique().tolist())
 # Loughran-McDonald mini word lists (for live scoring)
 # ---------------------------------------------------------------------------
 _NEG_WORDS = {
-    "loss", "losses", "decline", "declines", "risk", "uncertain",
-    "negative", "downturn", "weak", "concern", "headwind",
+    "loss",
+    "losses",
+    "decline",
+    "declines",
+    "risk",
+    "uncertain",
+    "negative",
+    "downturn",
+    "weak",
+    "concern",
+    "headwind",
 }
 _POS_WORDS = {
-    "profit", "profits", "growth", "strong", "opportunity",
-    "opportunities", "improve", "improving", "record", "robust",
-    "positive", "upside",
+    "profit",
+    "profits",
+    "growth",
+    "strong",
+    "opportunity",
+    "opportunities",
+    "improve",
+    "improving",
+    "record",
+    "robust",
+    "positive",
+    "upside",
 }
 
 
 @st.cache_resource
 def load_finbert():
     from transformers import pipeline
+
     return pipeline(
         "text-classification",
         model="ProsusAI/finbert",
@@ -162,8 +188,9 @@ def score_finbert(text: str) -> dict:
     }
 
 
-def predict_car(asym_df: pd.DataFrame, model_name: str, target: str,
-                features: dict) -> float | None:
+def predict_car(
+    asym_df: pd.DataFrame, model_name: str, target: str, features: dict
+) -> float | None:
     """Use OLS coefficients from asymmetry_results.csv to predict CAR."""
     row = asym_df[(asym_df["model"] == model_name) & (asym_df["target"] == target)]
     if row.empty:
@@ -184,6 +211,7 @@ def predict_car(asym_df: pd.DataFrame, model_name: str, target: str,
         if col and pd.notna(row.get(col)):
             car += row[col] * val
     return car
+
 
 # ---------------------------------------------------------------------------
 # Sidebar — global controls
@@ -214,29 +242,32 @@ with st.sidebar:
     )
 
 # Apply ticker filter
-study_f  = study[study["ticker"].isin(selected_tickers)]
-meta_f   = meta[meta["ticker"].isin(selected_tickers)]
-lex_f    = lex[lex["ticker"].isin(selected_tickers)]
-sot_f    = sot[sot["ticker"].isin(selected_tickers)]
-top_f    = top_terms[top_terms["ticker"].isin(selected_tickers)]
-mm_f     = ticker_mm[ticker_mm["ticker"].isin(selected_tickers)]
+study_f = study[study["ticker"].isin(selected_tickers)]
+meta_f = meta[meta["ticker"].isin(selected_tickers)]
+lex_f = lex[lex["ticker"].isin(selected_tickers)]
+sot_f = sot[sot["ticker"].isin(selected_tickers)]
+top_f = top_terms[top_terms["ticker"].isin(selected_tickers)]
+mm_f = ticker_mm[ticker_mm["ticker"].isin(selected_tickers)]
 
 # Merge lexicon onto study once (used in multiple tabs)
 study_lex = study_f.merge(
     lex_f[["file_name", "neg_rate", "pos_rate", "total_tokens"]],
-    on="file_name", how="left",
+    on="file_name",
+    how="left",
 )
 
 # ---------------------------------------------------------------------------
 # Tabs — same order as the four notebooks
 # ---------------------------------------------------------------------------
-tab1, tab2, tab3, tab4, tab5 = st.tabs([
-    "📦 01 · Data Pipeline",
-    "🔬 02 · Feature Extraction",
-    "🤖 03 · Modelling",
-    "📊 04 · Results",
-    "🧪 05 · Try It Yourself",
-])
+tab1, tab2, tab3, tab4, tab5 = st.tabs(
+    [
+        "📦 01 · Data Pipeline",
+        "🔬 02 · Feature Extraction",
+        "🤖 03 · Modelling",
+        "📊 04 · Results",
+        "🧪 05 · Try It Yourself",
+    ]
+)
 
 
 # ===========================================================================
@@ -274,8 +305,11 @@ with tab1:
             y=alt.Y("Ticker:N", title=None),
             color=alt.Color("Ticker:N", legend=None),
             size=alt.Size("CAR:Q", scale=alt.Scale(range=[20, 200]), legend=None),
-            tooltip=["Ticker", alt.Tooltip("Date:T", format="%Y-%m-%d"),
-                     alt.Tooltip("CAR:Q", format=".3f", title="CAR")],
+            tooltip=[
+                "Ticker",
+                alt.Tooltip("Date:T", format="%Y-%m-%d"),
+                alt.Tooltip("CAR:Q", format=".3f", title="CAR"),
+            ],
         )
         .properties(height=280)
         .interactive()
@@ -298,8 +332,7 @@ with tab1:
                 .mark_arc(innerRadius=50)
                 .encode(
                     theta=alt.Theta("Count:Q"),
-                    color=alt.Color("Label:N",
-                                    scale=alt.Scale(range=["#d62728", "#2ca02c"])),
+                    color=alt.Color("Label:N", scale=alt.Scale(range=["#d62728", "#2ca02c"])),
                     tooltip=["Label", "Count"],
                 )
                 .properties(height=250)
@@ -316,8 +349,7 @@ with tab1:
             .encode(
                 x=alt.X("period:N", sort=None, title="Year-Quarter"),
                 y=alt.Y("n:Q", title="# Calls"),
-                color=alt.Color("quarter:N",
-                                scale=alt.Scale(scheme="tableau10")),
+                color=alt.Color("quarter:N", scale=alt.Scale(scheme="tableau10")),
                 tooltip=["period", "n"],
             )
             .properties(height=250)
@@ -334,8 +366,14 @@ with tab1:
     )
 
     mm_display = mm_f[["ticker", "alpha", "beta", "n", "mean_car03", "mean_pre_vol"]].copy()
-    mm_display.columns = ["Ticker", "α (alpha)", "β (beta)", "Events",
-                          "Mean CAR[0,3]", "Mean Pre-vol"]
+    mm_display.columns = [
+        "Ticker",
+        "α (alpha)",
+        "β (beta)",
+        "Events",
+        "Mean CAR[0,3]",
+        "Mean Pre-vol",
+    ]
     for col in ["α (alpha)", "β (beta)", "Mean CAR[0,3]", "Mean Pre-vol"]:
         mm_display[col] = mm_display[col].apply(lambda v: f"{v:.4f}")
     st.dataframe(mm_display, width="stretch", hide_index=True)
@@ -404,9 +442,10 @@ with tab2:
         .encode(
             x=alt.X("ticker:N", title="Ticker"),
             y=alt.Y("Rate:Q", title="Mean word rate"),
-            color=alt.Color("Type:N",
-                            scale=alt.Scale(domain=["Negative", "Positive"],
-                                            range=["#d62728", "#2ca02c"])),
+            color=alt.Color(
+                "Type:N",
+                scale=alt.Scale(domain=["Negative", "Positive"], range=["#d62728", "#2ca02c"]),
+            ),
             xOffset=alt.XOffset("Type:N"),
             tooltip=["ticker", "Type", alt.Tooltip("Rate:Q", format=".5f")],
         )
@@ -418,9 +457,12 @@ with tab2:
     st.subheader("Sentiment Rates Over Time")
     st.caption("Quarterly mean across all selected tickers. Watch for trend breaks around 2020.")
 
-    sot_agg = (sot_f.groupby("period")[["neg_rate", "pos_rate"]]
-               .mean().reset_index()
-               .melt(id_vars="period", var_name="Type", value_name="Rate"))
+    sot_agg = (
+        sot_f.groupby("period")[["neg_rate", "pos_rate"]]
+        .mean()
+        .reset_index()
+        .melt(id_vars="period", var_name="Type", value_name="Rate")
+    )
     sot_agg["Type"] = sot_agg["Type"].map({"neg_rate": "Negative", "pos_rate": "Positive"})
 
     sent_line = (
@@ -429,9 +471,10 @@ with tab2:
         .encode(
             x=alt.X("period:N", sort=None, title="Year-Quarter"),
             y=alt.Y("Rate:Q", title="Mean word rate"),
-            color=alt.Color("Type:N",
-                            scale=alt.Scale(domain=["Negative", "Positive"],
-                                            range=["#d62728", "#2ca02c"])),
+            color=alt.Color(
+                "Type:N",
+                scale=alt.Scale(domain=["Negative", "Positive"], range=["#d62728", "#2ca02c"]),
+            ),
             tooltip=["period", "Type", alt.Tooltip("Rate:Q", format=".5f")],
         )
         .properties(height=300)
@@ -443,10 +486,14 @@ with tab2:
 
     # ---- 2C. TF-IDF top terms per ticker -----------------------------------
     st.subheader("TF-IDF Top Terms per Ticker")
-    st.caption("Mean TF-IDF score across all earnings calls for a ticker. Higher = more distinctive term.")
+    st.caption(
+        "Mean TF-IDF score across all earnings calls for a ticker. Higher = more distinctive term."
+    )
 
     ticker_sel = st.selectbox("Select ticker", options=selected_tickers, key="tfidf_ticker")
-    top_ticker = top_f[top_f["ticker"] == ticker_sel].sort_values("mean_tfidf", ascending=False).head(15)
+    top_ticker = (
+        top_f[top_f["ticker"] == ticker_sel].sort_values("mean_tfidf", ascending=False).head(15)
+    )
 
     tfidf_chart = (
         alt.Chart(top_ticker)
@@ -476,8 +523,12 @@ with tab2:
             y=alt.Y("NegRate:Q", title="Negative word rate"),
             color=alt.Color("Ticker:N"),
             size=alt.Size("CAR:Q", scale=alt.Scale(range=[10, 200]), legend=None),
-            tooltip=["Ticker", alt.Tooltip("Tokens:Q"), alt.Tooltip("NegRate:Q", format=".4f"),
-                     alt.Tooltip("CAR:Q", format=".4f")],
+            tooltip=[
+                "Ticker",
+                alt.Tooltip("Tokens:Q"),
+                alt.Tooltip("NegRate:Q", format=".4f"),
+                alt.Tooltip("CAR:Q", format=".4f"),
+            ],
         )
         .properties(height=350)
         .interactive()
@@ -488,8 +539,11 @@ with tab2:
     st.divider()
     st.subheader("Negative Sentiment Rate Heat Map (Ticker × Year)")
 
-    heat_data = (lex_f.groupby(["ticker", lex_f["event_trading_day"].dt.year])["neg_rate"]
-                 .mean().reset_index())
+    heat_data = (
+        lex_f.groupby(["ticker", lex_f["event_trading_day"].dt.year])["neg_rate"]
+        .mean()
+        .reset_index()
+    )
     heat_data.columns = ["Ticker", "Year", "NegRate"]
 
     heatmap = (
@@ -498,9 +552,7 @@ with tab2:
         .encode(
             x=alt.X("Year:O", title="Year"),
             y=alt.Y("Ticker:N", title=None),
-            color=alt.Color("NegRate:Q",
-                            scale=alt.Scale(scheme="reds"),
-                            title="Mean NegRate"),
+            color=alt.Color("NegRate:Q", scale=alt.Scale(scheme="reds"), title="Mean NegRate"),
             tooltip=["Ticker", "Year", alt.Tooltip("NegRate:Q", format=".5f")],
         )
         .properties(height=300, title="Negative Language Rate by Ticker and Year")
@@ -525,7 +577,9 @@ with tab3:
     target_choice = st.radio(
         "Target variable",
         options=["car_03", "car_01"],
-        format_func=lambda x: "CAR[0,3] — 4-day window" if x == "car_03" else "CAR[0,1] — 2-day window",
+        format_func=lambda x: (
+            "CAR[0,3] — 4-day window" if x == "car_03" else "CAR[0,1] — 2-day window"
+        ),
         horizontal=True,
         key="bench_target",
     )
@@ -533,34 +587,43 @@ with tab3:
     sub = bench[bench["target"] == target_choice].copy().drop(columns=["target"])
     for col in ["train_r2", "test_r2", "oos_r2", "wald_p"]:
         sub[col] = sub[col].apply(lambda v: f"{v:.4f}" if pd.notna(v) else "—")
-    sub = sub.rename(columns={
-        "model": "Model", "n_train": "Train n", "n_test": "Test n",
-        "train_r2": "Train R²", "test_r2": "Test R²", "oos_r2": "OOS R²", "wald_p": "Wald p",
-    })
+    sub = sub.rename(
+        columns={
+            "model": "Model",
+            "n_train": "Train n",
+            "n_test": "Test n",
+            "train_r2": "Train R²",
+            "test_r2": "Test R²",
+            "oos_r2": "OOS R²",
+            "wald_p": "Wald p",
+        }
+    )
     st.dataframe(sub, width="stretch", hide_index=True)
 
     # ---- 3B. R² comparison bar chart (train vs test) ----------------------
     st.subheader("Train R² vs Test R² — All Models")
-    st.caption("A large train→test gap = overfitting. OLS models here have very small gaps (low variance).")
+    st.caption(
+        "A large train→test gap = overfitting. OLS models here have very small gaps (low variance)."
+    )
 
     bench_plot = bench[bench["target"] == target_choice].copy()
     bench_long = bench_plot.melt(
-        id_vars=["model"], value_vars=["train_r2", "test_r2", "oos_r2"],
-        var_name="Split", value_name="R²"
+        id_vars=["model"],
+        value_vars=["train_r2", "test_r2", "oos_r2"],
+        var_name="Split",
+        value_name="R²",
     ).dropna()
-    bench_long["Split"] = bench_long["Split"].map({
-        "train_r2": "In-sample (train)", "test_r2": "Test", "oos_r2": "OOS R²"
-    })
+    bench_long["Split"] = bench_long["Split"].map(
+        {"train_r2": "In-sample (train)", "test_r2": "Test", "oos_r2": "OOS R²"}
+    )
 
     r2_bar = (
         alt.Chart(bench_long)
         .mark_bar()
         .encode(
-            x=alt.X("model:N", title=None,
-                    sort=list(bench_plot["model"])),
+            x=alt.X("model:N", title=None, sort=list(bench_plot["model"])),
             y=alt.Y("R²:Q"),
-            color=alt.Color("Split:N",
-                            scale=alt.Scale(scheme="tableau10")),
+            color=alt.Color("Split:N", scale=alt.Scale(scheme="tableau10")),
             xOffset=alt.XOffset("Split:N"),
             tooltip=["model", "Split", alt.Tooltip("R²:Q", format=".4f")],
         )
@@ -585,10 +648,15 @@ with tab3:
         .mark_circle(size=55, opacity=0.65)
         .encode(
             x=alt.X("NegRate:Q", title="Negative word rate (LM lexicon)"),
-            y=alt.Y("CAR:Q", title=f"Actual {'CAR[0,1]' if car_target == 'car_01' else 'CAR[0,3]'}"),
+            y=alt.Y(
+                "CAR:Q", title=f"Actual {'CAR[0,1]' if car_target == 'car_01' else 'CAR[0,3]'}"
+            ),
             color=alt.Color("Ticker:N"),
-            tooltip=["Ticker", alt.Tooltip("NegRate:Q", format=".5f"),
-                     alt.Tooltip("CAR:Q", format=".4f")],
+            tooltip=[
+                "Ticker",
+                alt.Tooltip("NegRate:Q", format=".5f"),
+                alt.Tooltip("CAR:Q", format=".4f"),
+            ],
         )
         .properties(height=380)
     )
@@ -601,7 +669,9 @@ with tab3:
 
     # ---- 3D. CAR distribution: positive vs negative events ----------------
     st.subheader("CAR Distribution — Positive vs Negative Calls")
-    st.caption("Calls with above-median NegRate vs below-median. Do negative calls cluster below zero?")
+    st.caption(
+        "Calls with above-median NegRate vs below-median. Do negative calls cluster below zero?"
+    )
 
     median_neg = study_lex["neg_rate"].median()
     study_lex_copy = study_lex.copy()
@@ -618,9 +688,12 @@ with tab3:
         .encode(
             x=alt.X("CAR:Q", bin=alt.Bin(maxbins=25), title="CAR"),
             y=alt.Y("count():Q", title="Count"),
-            color=alt.Color("Sentiment:N",
-                            scale=alt.Scale(domain=["High Negative", "Low Negative"],
-                                            range=["#d62728", "#2ca02c"])),
+            color=alt.Color(
+                "Sentiment:N",
+                scale=alt.Scale(
+                    domain=["High Negative", "Low Negative"], range=["#d62728", "#2ca02c"]
+                ),
+            ),
             tooltip=["Sentiment", "count()"],
         )
         .properties(height=300)
@@ -644,16 +717,16 @@ with tab4:
     asymmetry_ratio = abs(best["coef_neg_rate"] / best["coef_pos_rate"])
 
     verdict_color = "#d4edda" if is_sig else "#fff3cd"
-    border_color  = "#28a745" if is_sig else "#ffc107"
-    verdict_text  = "ASYMMETRY CONFIRMED (p < 0.10)" if is_sig else "Marginal evidence (p < 0.15)"
+    border_color = "#28a745" if is_sig else "#ffc107"
+    verdict_text = "ASYMMETRY CONFIRMED (p < 0.10)" if is_sig else "Marginal evidence (p < 0.15)"
 
     st.markdown(
         f"""
         <div style="padding:18px;border-radius:8px;
                     background:{verdict_color};border:1px solid {border_color}">
           <b style="font-size:1.15rem">Research finding: {verdict_text}</b><br>
-          Best model: <b>{best['model']}</b> on <b>{best['target'].upper()}</b><br>
-          Wald p-value: <b>{best['wald_p']:.4f}</b> &nbsp;|&nbsp;
+          Best model: <b>{best["model"]}</b> on <b>{best["target"].upper()}</b><br>
+          Wald p-value: <b>{best["wald_p"]:.4f}</b> &nbsp;|&nbsp;
           Asymmetry ratio: <b>|β_neg| / |β_pos| ≈ {asymmetry_ratio:.0f}×</b>
         </div>
         """,
@@ -673,8 +746,16 @@ with tab4:
     for _, row in asym.iterrows():
         label = f"{row['model']} ({row['target'].upper()})"
         coef_rows += [
-            {"Model": label, "Coefficient": "β_neg (negative language)", "Value": row["coef_neg_rate"]},
-            {"Model": label, "Coefficient": "β_pos (positive language)", "Value": row["coef_pos_rate"]},
+            {
+                "Model": label,
+                "Coefficient": "β_neg (negative language)",
+                "Value": row["coef_neg_rate"],
+            },
+            {
+                "Model": label,
+                "Coefficient": "β_pos (positive language)",
+                "Value": row["coef_pos_rate"],
+            },
         ]
     coef_df = pd.DataFrame(coef_rows)
 
@@ -699,10 +780,28 @@ with tab4:
     # ---- 4C. Full asymmetry table -----------------------------------------
     st.subheader("Full Asymmetry Results Table")
 
-    disp = asym[["model", "target", "coef_neg_rate", "pval_neg_rate",
-                  "coef_pos_rate", "pval_pos_rate", "wald_p", "asymmetric"]].copy()
-    disp.columns = ["Model", "Target", "β_neg", "p(β_neg)", "β_pos", "p(β_pos)",
-                     "Wald p", "Asymmetric?"]
+    disp = asym[
+        [
+            "model",
+            "target",
+            "coef_neg_rate",
+            "pval_neg_rate",
+            "coef_pos_rate",
+            "pval_pos_rate",
+            "wald_p",
+            "asymmetric",
+        ]
+    ].copy()
+    disp.columns = [
+        "Model",
+        "Target",
+        "β_neg",
+        "p(β_neg)",
+        "β_pos",
+        "p(β_pos)",
+        "Wald p",
+        "Asymmetric?",
+    ]
     for c in ["β_neg", "p(β_neg)", "β_pos", "p(β_pos)", "Wald p"]:
         disp[c] = disp[c].apply(lambda v: f"{v:.4f}" if pd.notna(v) else "—")
     disp["Asymmetric?"] = disp["Asymmetric?"].map({True: "Yes ✓", False: "No"})
@@ -742,20 +841,25 @@ with tab4:
 
     # ---- 4E. Written interpretation ----------------------------------------
     st.subheader("Interpretation & Conclusion")
+    wald_verdict = (
+        "rejects H₀ at 10% — asymmetry is statistically confirmed."
+        if is_sig
+        else "borderline — consistent with asymmetry but not definitively confirmed."
+    )
     st.markdown(
         f"""
         **Key findings:**
 
-        1. **β_neg ≈ {best['coef_neg_rate']:.1f}**: a 1 pp increase in negative word rate is
-           associated with a **{abs(best['coef_neg_rate']):.1f} pp decrease** in {best['target'].upper()}.
+        1. **β_neg ≈ {best["coef_neg_rate"]:.1f}**: a 1 pp increase in negative word rate is
+           associated with a **{abs(best["coef_neg_rate"]):.1f} pp decrease** in {best["target"].upper()}.
 
-        2. **β_pos ≈ {best['coef_pos_rate']:.1f}**: positive language has a far weaker
+        2. **β_pos ≈ {best["coef_pos_rate"]:.1f}**: positive language has a far weaker
            (statistically insignificant) effect.
 
         3. **Asymmetry ratio ≈ {asymmetry_ratio:.0f}×**: negative language drives returns
            roughly {asymmetry_ratio:.0f}× harder than positive language per unit rate.
 
-        4. **Wald test p = {best['wald_p']:.3f}**: {'rejects H₀ at 10% — asymmetry is statistically confirmed.' if is_sig else 'borderline (p < 0.15) — consistent with asymmetry but not definitively confirmed.'}
+        4. **Wald test p = {best["wald_p"]:.3f}**: {wald_verdict}
 
         **Economic interpretation:**
         Markets process bad news efficiently — a spike in negative earnings language
@@ -808,7 +912,8 @@ def _render_results(container, title: str, text: str, use_fb: bool):
 
         for target, label in [("car_03", "CAR[0,3]"), ("car_01", "CAR[0,1]")]:
             car = predict_car(
-                asym, "LM Lexicon" if target == "car_03" else "LM Lexicon [CAR01]",
+                asym,
+                "LM Lexicon" if target == "car_03" else "LM Lexicon [CAR01]",
                 target,
                 {"neg_rate": lx["neg_rate"], "pos_rate": lx["pos_rate"]},
             )

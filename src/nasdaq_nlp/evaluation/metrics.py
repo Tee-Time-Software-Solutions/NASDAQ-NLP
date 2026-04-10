@@ -64,10 +64,10 @@ from sklearn.metrics import (
     roc_auc_score,
 )
 
-
 # ---------------------------------------------------------------------------
 # Regression metrics
 # ---------------------------------------------------------------------------
+
 
 def r_squared(y_true: np.ndarray, y_pred: np.ndarray) -> float:
     """Coefficient of determination (R²).
@@ -111,9 +111,9 @@ def oos_r_squared(
     -------
     float — OOS R². Can be negative.
     """
-    train_mean = np.mean(y_train)                             # the naive forecast
-    mse_model = np.mean((y_test - y_pred_test) ** 2)         # model MSE
-    mse_mean = np.mean((y_test - train_mean) ** 2)           # mean-model MSE
+    train_mean = np.mean(y_train)  # the naive forecast
+    mse_model = np.mean((y_test - y_pred_test) ** 2)  # model MSE
+    mse_mean = np.mean((y_test - train_mean) ** 2)  # mean-model MSE
 
     if mse_mean == 0:
         return 1.0 if mse_model == 0 else float("-inf")
@@ -123,6 +123,7 @@ def oos_r_squared(
 # ---------------------------------------------------------------------------
 # Classification metrics
 # ---------------------------------------------------------------------------
+
 
 def classification_report_dict(
     y_true: np.ndarray,
@@ -158,6 +159,7 @@ def classification_report_dict(
 # ---------------------------------------------------------------------------
 # Benchmark table builder
 # ---------------------------------------------------------------------------
+
 
 def build_benchmark_table(results: list[dict]) -> pd.DataFrame:
     """Assemble a comparison table from a list of model result dicts.

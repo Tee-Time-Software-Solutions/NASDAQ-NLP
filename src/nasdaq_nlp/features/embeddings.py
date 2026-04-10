@@ -64,10 +64,10 @@ from nasdaq_nlp.config import (
 )
 from nasdaq_nlp.preprocessing.text import preprocess_transcript
 
-
 # ---------------------------------------------------------------------------
 # Corpus builder
 # ---------------------------------------------------------------------------
+
 
 def build_tokenised_corpus(file_paths: list[Path]) -> list[list[str]]:
     """Load and tokenise all transcripts for Word2Vec training.
@@ -85,14 +85,14 @@ def build_tokenised_corpus(file_paths: list[Path]) -> list[list[str]]:
         tokens = processed["tokens"]
         if tokens:  # skip empty documents
             corpus.append(tokens)
-    print(f"Corpus: {len(corpus)} documents, "
-          f"{sum(len(t) for t in corpus):,} total tokens")
+    print(f"Corpus: {len(corpus)} documents, {sum(len(t) for t in corpus):,} total tokens")
     return corpus
 
 
 # ---------------------------------------------------------------------------
 # Word2Vec training
 # ---------------------------------------------------------------------------
+
 
 def train_word2vec(
     corpus: list[list[str]],
@@ -128,17 +128,19 @@ def train_word2vec(
     -------
     Trained gensim Word2Vec model.
     """
-    print(f"Training Word2Vec: vector_size={vector_size}, window={window}, "
-          f"min_count={min_count}, epochs={epochs}")
+    print(
+        f"Training Word2Vec: vector_size={vector_size}, window={window}, "
+        f"min_count={min_count}, epochs={epochs}"
+    )
 
     model = Word2Vec(
         sentences=corpus,
         vector_size=vector_size,
         window=window,
         min_count=min_count,
-        sg=1,           # sg=1: skip-gram (better for small datasets)
-                        # sg=0: CBOW (faster, better for large datasets)
-        workers=4,      # parallel training threads
+        sg=1,  # sg=1: skip-gram (better for small datasets)
+        # sg=0: CBOW (faster, better for large datasets)
+        workers=4,  # parallel training threads
         seed=seed,
         epochs=epochs,
     )
@@ -151,6 +153,7 @@ def train_word2vec(
 # ---------------------------------------------------------------------------
 # Document embedding (average pooling)
 # ---------------------------------------------------------------------------
+
 
 def document_embedding(tokens: list[str], model: Word2Vec) -> np.ndarray:
     """Compute a document vector as the average of its word vectors.
@@ -171,11 +174,7 @@ def document_embedding(tokens: list[str], model: Word2Vec) -> np.ndarray:
     If no tokens are in the vocabulary, returns a zero vector.
     """
     # Get embeddings for each token that is in the model vocabulary
-    word_vectors = [
-        model.wv[token]
-        for token in tokens
-        if token in model.wv.key_to_index
-    ]
+    word_vectors = [model.wv[token] for token in tokens if token in model.wv.key_to_index]
 
     if not word_vectors:
         # All tokens were OOV (out-of-vocabulary) — return zero vector
@@ -215,6 +214,7 @@ def nearest_neighbors(
 # ---------------------------------------------------------------------------
 # Pipeline function
 # ---------------------------------------------------------------------------
+
 
 def build_embedding_features(
     study_path: Path = EVENT_STUDY_PATH,
@@ -262,8 +262,7 @@ def build_embedding_features(
     emb_cols = [f"emb_{i}" for i in range(emb_array.shape[1])]
     emb_df = pd.DataFrame(emb_array, columns=emb_cols)
     result = pd.concat(
-        [events[["ticker", "file_name", "event_trading_day"]].reset_index(drop=True),
-         emb_df],
+        [events[["ticker", "file_name", "event_trading_day"]].reset_index(drop=True), emb_df],
         axis=1,
     )
 

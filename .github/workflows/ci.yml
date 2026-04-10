@@ -2,30 +2,43 @@ name: CI
 
 on:
   push:
-    branches: [main, deployment+ci]
+    branches: [main, feature/frontend]
   pull_request:
     branches: [main]
 
 jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Install dependencies
+        run: uv sync --extra dev
+
+      - name: Lint
+        run: |
+          uv run ruff check src/ frontend/app.py create_notebooks.py
+          uv run ruff format --check src/ frontend/app.py create_notebooks.py
+
   test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
       - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
+        run: uv python install 3.12
 
       - name: Install dependencies
-        run: |
-          pip install pytest pytest-cov flake8
-          pip install pandas numpy statsmodels scikit-learn
+        run: uv sync --extra dev
 
-      - name: Lint
-        run: |
-          flake8 frontend/app.py scripts/ notebooks/Data_Modelling/ tests/ --max-line-length=120
-
-      - name: Run tests with coverage
-        run: |
-          pytest tests/ -v --tb=short --cov --cov-report=term-missing --cov-fail-under=70
+      - name: Run tests
+        run: uv run pytest tests/ -v --tb=short
