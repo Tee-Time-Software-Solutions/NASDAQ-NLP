@@ -1,23 +1,33 @@
 """
 frontend/app.py — NASDAQ-NLP Interactive Dashboard
 
-Four tabs that mirror the four project notebooks:
+Five tabs — four mirroring the project notebooks, plus live inference:
   1. Data Pipeline       (notebook 01) — call timeline, after-hours breakdown, market-model stats
   2. Feature Extraction  (notebook 02) — lexicon rates, TF-IDF top terms, sentiment heatmap
   3. Modelling           (notebook 03) — benchmark table, model comparison charts
   4. Results             (notebook 04) — asymmetry test, coefficient plot, interpretation
+  5. Try It Yourself     — upload transcripts for live sentiment scoring and CAR prediction
 
 Data source: frontend/data/ (pre-computed CSVs committed to git).
-No live inference — reads static results so the app loads in < 1 s.
+Tab 5 runs live inference using Loughran-McDonald lexicon and optionally FinBERT.
 """
 
 from __future__ import annotations
 
+import re
+from collections import Counter
 from pathlib import Path
 
 import altair as alt
 import pandas as pd
 import streamlit as st
+
+_FINBERT_AVAILABLE = False
+try:
+    import transformers  # noqa: F401
+    _FINBERT_AVAILABLE = True
+except ImportError:
+    pass
 
 # ---------------------------------------------------------------------------
 # Page config — must be the very first Streamlit call
@@ -86,6 +96,96 @@ ticker_mm= load_ticker_model_summary()
 ALL_TICKERS = sorted(study["ticker"].unique().tolist())
 
 # ---------------------------------------------------------------------------
+# Loughran-McDonald mini word lists (for live scoring)
+# ---------------------------------------------------------------------------
+_NEG_WORDS = {
+    "loss", "losses", "decline", "declines", "risk", "uncertain",
+    "negative", "downturn", "weak", "concern", "headwind",
+}
+_POS_WORDS = {
+    "profit", "profits", "growth", "strong", "opportunity",
+    "opportunities", "improve", "improving", "record", "robust",
+    "positive", "upside",
+}
+
+
+@st.cache_resource
+def load_finbert():
+    from transformers import pipeline
+    return pipeline(
+        "text-classification",
+        model="ProsusAI/finbert",
+        return_all_scores=True,
+        truncation=True,
+        max_length=256,
+    )
+
+
+def score_lexicon(text: str) -> dict:
+    tokens = re.findall(r"[A-Za-z']+", text.lower())
+    total = len(tokens) or 1
+    neg = sum(1 for t in tokens if t in _NEG_WORDS)
+    pos = sum(1 for t in tokens if t in _POS_WORDS)
+    return {
+        "total_tokens": len(tokens),
+        "neg_count": neg,
+        "pos_count": pos,
+        "neg_rate": neg / total,
+        "pos_rate": pos / total,
+    }
+
+
+def score_finbert(text: str) -> dict:
+    clf = load_finbert()
+    sentences = [s for s in re.split(r"(?<=[.!?])\s+", text.strip()) if s]
+    if not sentences:
+        return {"finbert_neg_mean": 0.0, "finbert_pos_mean": 0.0, "finbert_neu_mean": 0.0}
+
+    all_scores = clf(sentences, batch_size=16)
+
+    sums: Counter = Counter()
+    n = 0
+    for sent_scores in all_scores:
+        if isinstance(sent_scores, dict):
+            sent_scores = [sent_scores]
+        n += 1
+        for s in sent_scores:
+            sums[s["label"].lower()] += s["score"]
+
+    if n == 0:
+        return {"finbert_neg_mean": 0.0, "finbert_pos_mean": 0.0, "finbert_neu_mean": 0.0}
+
+    return {
+        "finbert_neg_mean": sums.get("negative", 0.0) / n,
+        "finbert_pos_mean": sums.get("positive", 0.0) / n,
+        "finbert_neu_mean": sums.get("neutral", 0.0) / n,
+    }
+
+
+def predict_car(asym_df: pd.DataFrame, model_name: str, target: str,
+                features: dict) -> float | None:
+    """Use OLS coefficients from asymmetry_results.csv to predict CAR."""
+    row = asym_df[(asym_df["model"] == model_name) & (asym_df["target"] == target)]
+    if row.empty:
+        return None
+    row = row.iloc[0]
+
+    const = row.get("coef_const", 0.0)
+    if pd.isna(const):
+        const = 0.0
+
+    car = const
+    coef_map = {
+        "neg_rate": "coef_neg_rate",
+        "pos_rate": "coef_pos_rate",
+    }
+    for feat, val in features.items():
+        col = coef_map.get(feat)
+        if col and pd.notna(row.get(col)):
+            car += row[col] * val
+    return car
+
+# ---------------------------------------------------------------------------
 # Sidebar — global controls
 # ---------------------------------------------------------------------------
 with st.sidebar:
@@ -130,11 +230,12 @@ study_lex = study_f.merge(
 # ---------------------------------------------------------------------------
 # Tabs — same order as the four notebooks
 # ---------------------------------------------------------------------------
-tab1, tab2, tab3, tab4 = st.tabs([
+tab1, tab2, tab3, tab4, tab5 = st.tabs([
     "📦 01 · Data Pipeline",
     "🔬 02 · Feature Extraction",
     "🤖 03 · Modelling",
     "📊 04 · Results",
+    "🧪 05 · Try It Yourself",
 ])
 
 
@@ -179,7 +280,7 @@ with tab1:
         .properties(height=280)
         .interactive()
     )
-    st.altair_chart(timeline, use_container_width=True)
+    st.altair_chart(timeline, width="stretch")
 
     # ---- 1C. After-hours breakdown -----------------------------------------
     col_left, col_right = st.columns(2)
@@ -203,7 +304,7 @@ with tab1:
                 )
                 .properties(height=250)
             )
-            st.altair_chart(pie, use_container_width=True)
+            st.altair_chart(pie, width="stretch")
 
     with col_right:
         st.subheader("Calls per Quarter")
@@ -221,7 +322,7 @@ with tab1:
             )
             .properties(height=250)
         )
-        st.altair_chart(bar_q, use_container_width=True)
+        st.altair_chart(bar_q, width="stretch")
 
     st.divider()
 
@@ -237,7 +338,7 @@ with tab1:
                           "Mean CAR[0,3]", "Mean Pre-vol"]
     for col in ["α (alpha)", "β (beta)", "Mean CAR[0,3]", "Mean Pre-vol"]:
         mm_display[col] = mm_display[col].apply(lambda v: f"{v:.4f}")
-    st.dataframe(mm_display, use_container_width=True, hide_index=True)
+    st.dataframe(mm_display, width="stretch", hide_index=True)
 
     # ---- 1E. CAR distribution over time ------------------------------------
     st.subheader(f"{'CAR[0,1]' if car_target == 'car_01' else 'CAR[0,3]'} Over Time")
@@ -257,7 +358,7 @@ with tab1:
         .properties(height=320)
         .interactive()
     )
-    st.altair_chart(car_line, use_container_width=True)
+    st.altair_chart(car_line, width="stretch")
 
     # ---- 1F. Volatility change distribution --------------------------------
     st.subheader("Post-event Volatility Change (ΔVol)")
@@ -277,7 +378,7 @@ with tab1:
         )
         .properties(height=280)
     )
-    st.altair_chart(vol_hist, use_container_width=True)
+    st.altair_chart(vol_hist, width="stretch")
 
 
 # ===========================================================================
@@ -311,7 +412,7 @@ with tab2:
         )
         .properties(height=320, title="Average Negative / Positive Word Rate per Ticker")
     )
-    st.altair_chart(lex_bar, use_container_width=True)
+    st.altair_chart(lex_bar, width="stretch")
 
     # ---- 2B. Sentiment rates over time (line chart) -----------------------
     st.subheader("Sentiment Rates Over Time")
@@ -336,7 +437,7 @@ with tab2:
         .properties(height=300)
         .interactive()
     )
-    st.altair_chart(sent_line, use_container_width=True)
+    st.altair_chart(sent_line, width="stretch")
 
     st.divider()
 
@@ -357,7 +458,7 @@ with tab2:
         )
         .properties(height=380, title=f"Top 15 TF-IDF Terms — {ticker_sel}")
     )
-    st.altair_chart(tfidf_chart, use_container_width=True)
+    st.altair_chart(tfidf_chart, width="stretch")
 
     # ---- 2D. Negative rate scatter vs total tokens (transcript length) ----
     st.divider()
@@ -381,7 +482,7 @@ with tab2:
         .properties(height=350)
         .interactive()
     )
-    st.altair_chart(length_scatter, use_container_width=True)
+    st.altair_chart(length_scatter, width="stretch")
 
     # ---- 2E. Sentiment comparison heat map (ticker × year) ----------------
     st.divider()
@@ -404,7 +505,7 @@ with tab2:
         )
         .properties(height=300, title="Negative Language Rate by Ticker and Year")
     )
-    st.altair_chart(heatmap, use_container_width=True)
+    st.altair_chart(heatmap, width="stretch")
 
 
 # ===========================================================================
@@ -436,7 +537,7 @@ with tab3:
         "model": "Model", "n_train": "Train n", "n_test": "Test n",
         "train_r2": "Train R²", "test_r2": "Test R²", "oos_r2": "OOS R²", "wald_p": "Wald p",
     })
-    st.dataframe(sub, use_container_width=True, hide_index=True)
+    st.dataframe(sub, width="stretch", hide_index=True)
 
     # ---- 3B. R² comparison bar chart (train vs test) ----------------------
     st.subheader("Train R² vs Test R² — All Models")
@@ -465,7 +566,7 @@ with tab3:
         )
         .properties(height=350, title=f"R² by Model — {target_choice.upper()}")
     )
-    st.altair_chart(r2_bar, use_container_width=True)
+    st.altair_chart(r2_bar, width="stretch")
 
     st.divider()
 
@@ -494,7 +595,7 @@ with tab3:
     reg = scatter_base.transform_regression("NegRate", "CAR").mark_line(
         color="black", strokeDash=[6, 3], size=2
     )
-    st.altair_chart((scatter_base + reg).interactive(), use_container_width=True)
+    st.altair_chart((scatter_base + reg).interactive(), width="stretch")
 
     st.divider()
 
@@ -524,7 +625,7 @@ with tab3:
         )
         .properties(height=300)
     )
-    st.altair_chart(dist_chart, use_container_width=True)
+    st.altair_chart(dist_chart, width="stretch")
 
 
 # ===========================================================================
@@ -593,7 +694,7 @@ with tab4:
         )
         .properties(height=380)
     )
-    st.altair_chart(coef_chart, use_container_width=True)
+    st.altair_chart(coef_chart, width="stretch")
 
     # ---- 4C. Full asymmetry table -----------------------------------------
     st.subheader("Full Asymmetry Results Table")
@@ -605,7 +706,7 @@ with tab4:
     for c in ["β_neg", "p(β_neg)", "β_pos", "p(β_pos)", "Wald p"]:
         disp[c] = disp[c].apply(lambda v: f"{v:.4f}" if pd.notna(v) else "—")
     disp["Asymmetric?"] = disp["Asymmetric?"].map({True: "Yes ✓", False: "No"})
-    st.dataframe(disp, use_container_width=True, hide_index=True)
+    st.dataframe(disp, width="stretch", hide_index=True)
 
     st.divider()
 
@@ -670,3 +771,108 @@ with tab4:
           a per-sentence basis and are the recommended feature for future work.
         """
     )
+
+
+# ===========================================================================
+# TAB 5 — Try It Yourself (live model deployment)
+# ===========================================================================
+
+
+def _render_results(container, title: str, text: str, use_fb: bool):
+    """Render sentiment scores and CAR prediction into *container*."""
+    with container, st.container(border=True):
+        st.subheader(title)
+
+        lx = score_lexicon(text)
+
+        st.markdown("**Loughran-McDonald Lexicon**")
+        c1, c2, c3, c4 = st.columns(4)
+        c1.metric("Negative Rate", f"{lx['neg_rate']:.4f}")
+        c2.metric("Positive Rate", f"{lx['pos_rate']:.4f}")
+        c3.metric("Neg / Pos Words", f"{lx['neg_count']} / {lx['pos_count']}")
+        c4.metric("Total Tokens", f"{lx['total_tokens']:,}")
+
+        fin = None
+        if use_fb:
+            with st.spinner("Running FinBERT..."):
+                fin = score_finbert(text)
+
+            st.markdown("**FinBERT (deep learning)**")
+            c1, c2, c3 = st.columns(3)
+            c1.metric("Negative", f"{fin['finbert_neg_mean']:.4f}")
+            c2.metric("Positive", f"{fin['finbert_pos_mean']:.4f}")
+            c3.metric("Neutral", f"{fin['finbert_neu_mean']:.4f}")
+
+        st.markdown("---")
+        st.markdown("**Predicted Market Reaction**")
+
+        for target, label in [("car_03", "CAR[0,3]"), ("car_01", "CAR[0,1]")]:
+            car = predict_car(
+                asym, "LM Lexicon" if target == "car_03" else "LM Lexicon [CAR01]",
+                target,
+                {"neg_rate": lx["neg_rate"], "pos_rate": lx["pos_rate"]},
+            )
+            if car is not None:
+                st.metric(f"Lexicon Model — {label}", f"{car:+.4%}")
+
+
+with tab5:
+    st.header("Try It Yourself")
+    st.markdown(
+        "Upload one or two earnings-call transcripts to analyze sentiment "
+        "and predict the market reaction. Upload two to compare side by side."
+    )
+
+    uploaded_files = st.file_uploader(
+        "Upload transcripts (.txt)",
+        type=["txt"],
+        accept_multiple_files=True,
+        help="Upload up to 2 plain-text transcripts to compare.",
+    )
+
+    if len(uploaded_files) > 2:
+        st.warning("Only the first 2 files will be analyzed.")
+        uploaded_files = uploaded_files[:2]
+
+    transcript_paste = ""
+    if not uploaded_files:
+        transcript_paste = st.text_area(
+            "Or paste text directly",
+            height=250,
+            placeholder="Paste earnings call transcript here...",
+        )
+
+    use_finbert = False
+    if _FINBERT_AVAILABLE:
+        use_finbert = st.toggle(
+            "Use FinBERT",
+            help="Load the FinBERT transformer model for deep-learning-based sentiment. "
+            "First run may take ~60 seconds.",
+        )
+    else:
+        st.info(
+            "**FinBERT is unavailable** (requires `transformers` and `torch`). "
+            "Lexicon-based analysis is always available.",
+        )
+
+    inputs: list[tuple[str, str]] = []
+    if uploaded_files:
+        for f in uploaded_files:
+            inputs.append((f.name, f.getvalue().decode("utf-8", errors="ignore")))
+    elif transcript_paste.strip():
+        inputs.append(("Pasted text", transcript_paste))
+
+    if st.button("Analyze", type="primary", disabled=not inputs):
+        if len(inputs) == 1:
+            _render_results(st.container(), inputs[0][0], inputs[0][1], use_finbert)
+        else:
+            col_left, col_right = st.columns(2)
+            _render_results(col_left, inputs[0][0], inputs[0][1], use_finbert)
+            _render_results(col_right, inputs[1][0], inputs[1][1], use_finbert)
+
+        st.caption(
+            "These predictions are from OLS models trained on a limited "
+            "dataset of NASDAQ earnings calls. They should not be used for "
+            "investment decisions. CAR = cumulative abnormal return on "
+            "the event day and subsequent trading days."
+        )

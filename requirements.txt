@@ -1,8 +1,10 @@
 # requirements.txt — for Streamlit Community Cloud deployment
-# Only packages needed by the frontend dashboard (reads pre-computed CSVs).
-# Heavy ML libs (torch, transformers, gensim) are excluded — not needed at serve time.
+# Packages needed by the frontend dashboard.
 
 streamlit>=1.32
 pandas>=2.0
 numpy>=1.24
 altair>=5.0
+transformers>=4.30.0
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch>=2.0.0
