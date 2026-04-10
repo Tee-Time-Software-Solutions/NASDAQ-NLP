@@ -512,6 +512,33 @@ Source: \href{https://github.com/Tee-Time-Software-Solutions/NASDAQ-NLP/blob/mai
 \end{figure*}
 
 \FloatBarrier
+\subsection{Discussion}
+
+Taken together, these results tell a coherent story.
+Negative sentiment in earnings calls is not just a noisy proxy---it carries
+genuine predictive information about subsequent market reactions, but only
+after controlling for background market risk and time trends.
+The presentation section of a call is effectively sanitized: management reads
+from a script that has been reviewed by legal and investor relations teams,
+so the negative word rate there is near zero and carries no signal.
+The Q\&A section is different---analysts ask pointed questions and management
+responses are unscripted, which is where real tone information leaks through.
+This is the mechanism behind the $-10.3$ coefficient in the Pres+Q\&A model.
+
+The simplicity premium in OOS $R^2$ (LM lexicon beats TF-IDF and Word2Vec)
+is not surprising in hindsight.
+With only $\sim$155 training events, a 500-feature TF-IDF matrix has far more
+parameters than signal, and regularization can only partially compensate.
+Domain-adapted features that are noise-resistant by design outperform
+representation learning in this low-data regime.
+
+The classification results (AUC $\approx 0.60$, accuracy $\approx 59\%$) suggest
+that predicting the direction of a market reaction is easier than predicting its
+magnitude, which aligns with the broader financial NLP literature.
+Market reactions are partly driven by factors orthogonal to language
+(algorithmic reactions, options hedging, order flow), so a ceiling around 60\%
+accuracy is expected and not a failure of the NLP approach.
+
 % ============================================================
 \section{System Deployment}
 \label{sec:deployment}
@@ -621,9 +648,16 @@ simplicity. Adding high-dimensional controls to a small training set ($n \approx
 degrades OOS performance even with Ridge regularization, highlighting the
 sample-size constraint inherent to firm-level earnings call studies.
 
-Future work should evaluate these findings on a broader multi-sector corpus and
-incorporate analyst consensus estimates (beat/miss vs. expectations), which are
-the dominant driver of post-earnings CAR and are currently absent from our specification.
+Three extensions stand out as the most promising next steps.
+First, incorporating analyst consensus data (beat/miss vs.\ expectations) as a control
+variable would isolate the pure tone signal from the fundamental earnings surprise,
+which is the dominant driver of post-earnings CAR and is currently absent from our specification.
+Second, expanding the corpus to a broader multi-sector sample would test whether the
+asymmetry effect is specific to technology firms or holds more generally.
+Third, integrating FinBERT---a BERT model fine-tuned on financial text---as an additional
+feature source is a natural extension; we attempted this during development but
+Transformer inference over 620 long transcripts exhausted local memory resources,
+making it infeasible without dedicated GPU compute.
 
 \begin{thebibliography}{00}
 
