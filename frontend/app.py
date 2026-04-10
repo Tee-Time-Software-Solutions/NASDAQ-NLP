@@ -44,11 +44,13 @@ DATA_DIR = Path(__file__).parent / "data"
 # Data loaders — @st.cache_data so CSVs are read only once per session
 # ---------------------------------------------------------------------------
 
+
 @st.cache_data
 def load_event_study() -> pd.DataFrame:
     df = pd.read_csv(DATA_DIR / "event_study_dataset.csv",
                      parse_dates=["event_trading_day"])
     return df
+
 
 @st.cache_data
 def load_event_metadata() -> pd.DataFrame:
@@ -56,42 +58,49 @@ def load_event_metadata() -> pd.DataFrame:
                      parse_dates=["event_trading_day"])
     return df
 
+
 @st.cache_data
 def load_lexicon() -> pd.DataFrame:
     return pd.read_csv(DATA_DIR / "lexicon_features.csv",
                        parse_dates=["event_trading_day"])
 
+
 @st.cache_data
 def load_benchmark() -> pd.DataFrame:
     return pd.read_csv(DATA_DIR / "benchmark_table.csv")
+
 
 @st.cache_data
 def load_asymmetry() -> pd.DataFrame:
     return pd.read_csv(DATA_DIR / "asymmetry_results.csv")
 
+
 @st.cache_data
 def load_tfidf_top_terms() -> pd.DataFrame:
     return pd.read_csv(DATA_DIR / "tfidf_top_terms.csv")
+
 
 @st.cache_data
 def load_sentiment_over_time() -> pd.DataFrame:
     return pd.read_csv(DATA_DIR / "sentiment_over_time.csv")
 
+
 @st.cache_data
 def load_ticker_model_summary() -> pd.DataFrame:
     return pd.read_csv(DATA_DIR / "ticker_model_summary.csv")
 
+
 # ---------------------------------------------------------------------------
 # Load all data
 # ---------------------------------------------------------------------------
-study    = load_event_study()
-meta     = load_event_metadata()
-lex      = load_lexicon()
-bench    = load_benchmark()
-asym     = load_asymmetry()
-top_terms= load_tfidf_top_terms()
-sot      = load_sentiment_over_time()
-ticker_mm= load_ticker_model_summary()
+study = load_event_study()
+meta = load_event_metadata()
+lex = load_lexicon()
+bench = load_benchmark()
+asym = load_asymmetry()
+top_terms = load_tfidf_top_terms()
+sot = load_sentiment_over_time()
+ticker_mm = load_ticker_model_summary()
 
 ALL_TICKERS = sorted(study["ticker"].unique().tolist())
 
@@ -185,6 +194,7 @@ def predict_car(asym_df: pd.DataFrame, model_name: str, target: str,
             car += row[col] * val
     return car
 
+
 # ---------------------------------------------------------------------------
 # Sidebar — global controls
 # ---------------------------------------------------------------------------
@@ -214,12 +224,12 @@ with st.sidebar:
     )
 
 # Apply ticker filter
-study_f  = study[study["ticker"].isin(selected_tickers)]
-meta_f   = meta[meta["ticker"].isin(selected_tickers)]
-lex_f    = lex[lex["ticker"].isin(selected_tickers)]
-sot_f    = sot[sot["ticker"].isin(selected_tickers)]
-top_f    = top_terms[top_terms["ticker"].isin(selected_tickers)]
-mm_f     = ticker_mm[ticker_mm["ticker"].isin(selected_tickers)]
+study_f = study[study["ticker"].isin(selected_tickers)]
+meta_f = meta[meta["ticker"].isin(selected_tickers)]
+lex_f = lex[lex["ticker"].isin(selected_tickers)]
+sot_f = sot[sot["ticker"].isin(selected_tickers)]
+top_f = top_terms[top_terms["ticker"].isin(selected_tickers)]
+mm_f = ticker_mm[ticker_mm["ticker"].isin(selected_tickers)]
 
 # Merge lexicon onto study once (used in multiple tabs)
 study_lex = study_f.merge(
@@ -644,8 +654,8 @@ with tab4:
     asymmetry_ratio = abs(best["coef_neg_rate"] / best["coef_pos_rate"])
 
     verdict_color = "#d4edda" if is_sig else "#fff3cd"
-    border_color  = "#28a745" if is_sig else "#ffc107"
-    verdict_text  = "ASYMMETRY CONFIRMED (p < 0.10)" if is_sig else "Marginal evidence (p < 0.15)"
+    border_color = "#28a745" if is_sig else "#ffc107"
+    verdict_text = "ASYMMETRY CONFIRMED (p < 0.10)" if is_sig else "Marginal evidence (p < 0.15)"
 
     st.markdown(
         f"""
@@ -700,9 +710,9 @@ with tab4:
     st.subheader("Full Asymmetry Results Table")
 
     disp = asym[["model", "target", "coef_neg_rate", "pval_neg_rate",
-                  "coef_pos_rate", "pval_pos_rate", "wald_p", "asymmetric"]].copy()
+                 "coef_pos_rate", "pval_pos_rate", "wald_p", "asymmetric"]].copy()
     disp.columns = ["Model", "Target", "β_neg", "p(β_neg)", "β_pos", "p(β_pos)",
-                     "Wald p", "Asymmetric?"]
+                    "Wald p", "Asymmetric?"]
     for c in ["β_neg", "p(β_neg)", "β_pos", "p(β_pos)", "Wald p"]:
         disp[c] = disp[c].apply(lambda v: f"{v:.4f}" if pd.notna(v) else "—")
     disp["Asymmetric?"] = disp["Asymmetric?"].map({True: "Yes ✓", False: "No"})
@@ -742,6 +752,11 @@ with tab4:
 
     # ---- 4E. Written interpretation ----------------------------------------
     st.subheader("Interpretation & Conclusion")
+    wald_verdict = (
+        "rejects H₀ at 10% — asymmetry is statistically confirmed."
+        if is_sig else
+        "borderline — consistent with asymmetry but not definitively confirmed."
+    )
     st.markdown(
         f"""
         **Key findings:**
@@ -755,7 +770,7 @@ with tab4:
         3. **Asymmetry ratio ≈ {asymmetry_ratio:.0f}×**: negative language drives returns
            roughly {asymmetry_ratio:.0f}× harder than positive language per unit rate.
 
-        4. **Wald test p = {best['wald_p']:.3f}**: {'rejects H₀ at 10% — asymmetry is statistically confirmed.' if is_sig else 'borderline (p < 0.15) — consistent with asymmetry but not definitively confirmed.'}
+        4. **Wald test p = {best['wald_p']:.3f}**: {wald_verdict}
 
         **Economic interpretation:**
         Markets process bad news efficiently — a spike in negative earnings language

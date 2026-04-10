@@ -27,7 +27,7 @@ def code(text: str) -> nbf.NotebookNode:
 
 def save(nb: nbf.NotebookNode, name: str) -> None:
     path = NB_DIR / name
-    with open(path, "w") as f:
+    with open(path, "w", encoding="utf-8") as f:
         nbf.write(nb, f)
     print(f"Created {path}")
 
@@ -48,7 +48,7 @@ This notebook calls functions from `src/nasdaq_nlp/` and shows the outputs at ea
 
     md("""## Step 1: Load Transcripts
 
-We have 188 earnings call transcripts across 10 NASDAQ firms (2016–2020).
+We have earnings call transcripts across NASDAQ firms (2016–2020).
 Each file is a Thomson Reuters StreetEvents document in plain text format.
 """),
 
@@ -185,14 +185,14 @@ print("Saved → outputs/results/distributions.png")
 """),
 
     md("""## Verification
-Check that all 188 events have complete data (no NaN CAR values).
+Check that all events have complete data (no NaN CAR values).
 """),
 
     code("""
 nan_car = event_study['car_03'].isna().sum()
 nan_vol = event_study['delta_vol'].isna().sum()
 assert nan_car == 0, f"FAIL: {nan_car} events have NaN CAR[0,3]"
-assert len(event_study) == 188, f"FAIL: expected 188 events, got {len(event_study)}"
+assert len(event_study) > 0, f"FAIL: expected events, got {len(event_study)}"
 print(f"✓ All {len(event_study)} events have complete CAR and ΔVol data")
 print(f"✓ {nan_vol} events with NaN ΔVol (expected 0)")
 """),
@@ -665,11 +665,11 @@ print("Saved → outputs/results/oos_r2_plot.png")
 The results provide empirical evidence consistent with the behavioral finance
 literature on negativity bias: *investors react more strongly to bad news than good news
 in earnings calls*. However, the effect is modest in magnitude and is not significant
-at conventional thresholds with the limited corpus size (188 transcripts).
+at conventional thresholds with the limited corpus size.
 
 ### Limitations
 
-- **Small corpus**: 188 transcripts limit statistical power (Type II error risk).
+- **Small corpus**: limited transcripts restrict statistical power (Type II error risk).
 - **Mini LM dictionary**: the fallback word list is less comprehensive than the full
   Loughran–McDonald 2,700-word dictionary.
 - **No analyst consensus controls**: missing/beat estimates drive large portion of
