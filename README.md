@@ -6,7 +6,7 @@ stronger predictors of short-window market reactions than positive signals?
 We test the **asymmetry hypothesis** — |β_neg| > |β_pos| — using NLP features
 applied to 620 earnings calls across 19 technology-sector firms (2007–2025).
 
-**Live dashboard**: https://tee-time-software-solutions-nasdaq-nlp-frontendapp-featu-pvfgpc.streamlit.app/
+**Live dashboard**: https://nasdaq-nlp.streamlit.app/
 
 ---
 
