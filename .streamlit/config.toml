@@ -1,0 +1,10 @@
+[theme]
+primaryColor = "#0066cc"
+backgroundColor = "#ffffff"
+secondaryBackgroundColor = "#f0f2f6"
+textColor = "#1a1a1a"
+font = "sans serif"
+
+[server]
+# Streamlit Community Cloud ignores these, but useful locally
+headless = true

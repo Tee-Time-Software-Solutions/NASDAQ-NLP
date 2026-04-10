@@ -1,77 +1,103 @@
-.PHONY: pipeline serve clean install test lint all
+.DEFAULT_GOAL := help
+.PHONY: help install pipeline finbert notebooks serve lint clean format test all
 
-# ── Run everything: pipeline then serve ──────────────────────────────────────
-all: pipeline serve
+# ── Python / UV ──────────────────────────────────────────────────────────────
+# UV must be installed:  curl -LsSf https://astral.sh/uv/install.sh | sh
 
-# ── Install pipeline dependencies ────────────────────────────────────────────
-install:
-	python3 -m pip install -r requirements-pipeline.txt
+help:          ## Show this help message
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) \
+		| awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2}'
 
-# ── Full data pipeline ───────────────────────────────────────────────────────
-pipeline: install
-	@echo "=== Step 1/6: Downloading Kaggle transcripts ==="
-	python3 scripts/download_data.py
+install:       ## Create venv and install all dependencies via UV
+	uv sync
 
-	@echo "=== Step 2/6: Building event metadata ==="
-	python3 scripts/build_event_metadata.py
+# ── Run everything: pipeline then serve ─────────────────────────────────────
+all: pipeline serve  ## Run full pipeline then launch dashboard
 
-	@echo "=== Step 3/6: Downloading market data ==="
-	python3 scripts/download_market_data.py
+# ── Data pipeline ────────────────────────────────────────────────────────────
+# Runs each pipeline step in order, writing CSVs to outputs/processed/.
+# Re-running is safe — each step overwrites its own output file.
 
-	@echo "=== Step 4/6: Running processing notebooks ==="
-	@# Notebooks use ../data/ relative paths — symlink so they resolve correctly
-	@if [ ! -e notebooks/data ]; then ln -s "$$(pwd)/data" notebooks/data; fi
-	@for nb in \
-		01_validate_event_metadata_final.ipynb \
-		02_validate_market_data.ipynb \
-		03_compute_returns.ipynb \
-		04_build_event_windows.ipynb \
-		05_estimate_market_model.ipynb \
-		06_compute_abnormal_returns.ipynb \
-		07_compute_CAR.ipynb \
-		08_compute_volatility_change.ipynb \
-		09_assemble_event_study_dataset.ipynb; do \
-		echo "  Running $$nb ..."; \
-		jupyter nbconvert --to notebook --execute \
-			notebooks/Data_Processing/$$nb \
-			--ExecutePreprocessor.timeout=600 \
-			--output /tmp/nb_out.ipynb || \
-			{ echo "  FAILED: $$nb"; exit 1; }; \
-	done
+pipeline:      ## Run the full data pipeline (metadata → market → features)
+	@echo "── Step 1: build event metadata ──"
+	uv run python -c "from nasdaq_nlp.data.metadata import build_event_metadata; build_event_metadata()"
+	@echo "── Step 2: download market data + compute returns ──"
+	uv run python -c "from nasdaq_nlp.data.market import build_market_returns; build_market_returns()"
+	@echo "── Step 3: compute market model (OLS α,β), AR, CAR, ΔVol ──"
+	uv run python -c "from nasdaq_nlp.models.market_model import build_event_study; build_event_study()"
+	@echo "── Step 4: lexicon sentiment features ──"
+	uv run python -c "from nasdaq_nlp.features.lexicon import build_lexicon_features; build_lexicon_features()"
+	@echo "── Step 5: n-gram + TF-IDF features ──"
+	uv run python -c "from nasdaq_nlp.features.tfidf import build_tfidf_features; build_tfidf_features()"
+	@echo "── Step 6: Word2Vec document embeddings ──"
+	uv run python -c "from nasdaq_nlp.features.embeddings import build_embedding_features; build_embedding_features()"
+	@echo "── Step 7: FinBERT sentiment (slow — runs transformer) ──"
+	uv run python -c "from nasdaq_nlp.features.finbert import build_finbert_features; build_finbert_features()"
+	@echo ""
+	@echo "✓ Pipeline complete.  Outputs in outputs/processed/"
 
-	@echo "=== Step 5/6: Computing sentiment features ==="
-	python3 scripts/compute_lexicon_sentiment.py
-	python3 scripts/compute_finbert_sentiment.py
+ect-pipeline:  ## Import cleaned_ECTs dataset and run full pipeline on combined data
+	@echo "── Step 1: build ECT event metadata (resolves event dates via yfinance) ──"
+	uv run python -c "from nasdaq_nlp.data.loader.ect import build_ect_metadata; build_ect_metadata()"
+	@echo "── Step 2: merge with original metadata → combined_event_metadata.csv ──"
+	uv run python -c "from nasdaq_nlp.data.loader.ect import build_combined_metadata; build_combined_metadata()"
+	@echo "── Step 3: download market data for all tickers + indices ──"
+	uv run python -c "from pathlib import Path; from nasdaq_nlp.data.market import build_market_returns; build_market_returns(Path('outputs/processed/combined_event_metadata.csv'))"
+	@echo "── Step 4: compute market model + CAR for all events ──"
+	uv run python -c "from pathlib import Path; from nasdaq_nlp.models.market_model import build_event_study; from nasdaq_nlp.config import EVENT_STUDY_PATH, STOCK_RETURNS_PATH, INDEX_RETURNS_PATH, MARKET_MODEL_PATH; build_event_study(Path('outputs/processed/combined_event_metadata.csv'), STOCK_RETURNS_PATH, INDEX_RETURNS_PATH, MARKET_MODEL_PATH, EVENT_STUDY_PATH)"
+	@echo "── Step 5: lexicon features (re-run on all events) ──"
+	uv run python -c "from nasdaq_nlp.features.lexicon import build_lexicon_features; build_lexicon_features()"
+	@echo "── Step 6: TF-IDF features ──"
+	uv run python -c "from nasdaq_nlp.features.tfidf import build_tfidf_features; build_tfidf_features()"
+	@echo "── Step 7: Word2Vec embeddings ──"
+	uv run python -c "from nasdaq_nlp.features.embeddings import build_embedding_features; build_embedding_features()"
+	@echo ""
+	@echo "✓ ECT pipeline complete. Run notebooks/03 and notebooks/04 to see updated results."
 
-	@echo "=== Step 6/6: Running models ==="
-	python3 notebooks/Data_Modelling/12_model_sentiment_vs_market.py
-	python3 notebooks/Data_Modelling/13_asymmetry_tests.py
-	python3 notebooks/Data_Modelling/14_results_summary.py
+finbert:       ## Run FinBERT feature extraction (slow — ~15-30 min on CPU)
+	@echo "── FinBERT: scoring 188 transcripts ──"
+	@echo "   Progress logs stream to stdout. Kill safely — resumes from checkpoint."
+	uv run python -c "from nasdaq_nlp.features.finbert import build_finbert_features; build_finbert_features()"
+	@echo "✓ FinBERT complete. Output: outputs/processed/finbert_features.csv"
 
-	@echo "=== Copying results to outputs/results/ ==="
-	@mkdir -p outputs/results
-	cp data/processed/event_study_dataset.csv outputs/results/
-	cp data/processed/lexicon_sentiment_features.csv outputs/results/
-	cp data/processed/finbert_sentiment_features.csv outputs/results/
-	cp data/processed/model_results_car01.csv outputs/results/
-	cp data/processed/results_summary_for_paper.csv outputs/results/
-	cp data/processed/asymmetry_tests_car01_lexicon.txt outputs/results/
+finbert-bg:    ## Run FinBERT in background, streaming logs to outputs/logs/finbert.log
+	@echo "Starting FinBERT in background → outputs/logs/finbert.log"
+	@mkdir -p outputs/logs
+	nohup uv run python -c \
+		"from nasdaq_nlp.features.finbert import build_finbert_features; build_finbert_features()" \
+		> outputs/logs/finbert.log 2>&1 &
+	@echo "PID: $$!  —  tail -f outputs/logs/finbert.log"
 
-	@echo "=== Pipeline complete ==="
+# ── Notebooks ────────────────────────────────────────────────────────────────
+# Executes all 4 notebooks headlessly; fails loudly if any cell raises.
 
-# ── Local Streamlit app ──────────────────────────────────────────────────────
-serve:
-	streamlit run frontend/app.py
+notebooks:     ## Execute all 4 notebooks headlessly (requires pipeline to run first)
+	uv run jupyter nbconvert --to notebook --execute \
+		--ExecutePreprocessor.timeout=600 \
+		--output-dir notebooks/executed \
+		notebooks/01_data_pipeline.ipynb \
+		notebooks/02_feature_extraction.ipynb \
+		notebooks/03_modeling.ipynb \
+		notebooks/04_results.ipynb
+	@echo "✓ All notebooks executed cleanly."
 
-# ── Run unit tests ───────────────────────────────────────────────────────────
-test:
+# ── Frontend ─────────────────────────────────────────────────────────────────
+serve:         ## Launch the Streamlit dashboard (frontend/)
+	uv run streamlit run frontend/app.py
+
+# ── Testing ──────────────────────────────────────────────────────────────────
+test:          ## Run unit tests with coverage
 	pytest tests/ -v --tb=short --cov --cov-report=term-missing
 
-# ── Lint ────────────────────────────────────────────────────────────────────
-lint:
-	flake8 frontend/app.py scripts/ notebooks/Data_Modelling/ tests/ --max-line-length=120
+# ── Code quality ─────────────────────────────────────────────────────────────
+lint:          ## Run ruff linter + formatter check
+	uv run ruff check src/
+	uv run ruff format --check src/
 
-# ── Clean generated data ─────────────────────────────────────────────────────
-clean:
-	rm -rf data/raw data/processed outputs/results
-	rm -f notebooks/data
+format:        ## Auto-fix lint issues and reformat
+	uv run ruff check --fix src/
+	uv run ruff format src/
+
+# ── Clean ────────────────────────────────────────────────────────────────────
+clean:         ## Remove generated data and outputs
+	rm -rf outputs/processed/ outputs/results/ outputs/logs/

@@ -212,9 +212,10 @@ __marimo__/
 secrets/
 *.env
 
-# data
-data/raw/
-data/processed/
+# generated pipeline outputs (safe to delete and regenerate)
+outputs/processed/
+outputs/results/
+outputs/logs/
 
 # local python env
 venv/
@@ -222,6 +223,9 @@ venv/
 
 # notebooks
 .ipynb_checkpoints/
+notebooks/executed/
+
+uv.lock
 
 # outputs (keep results for Streamlit deployment)
 outputs/
