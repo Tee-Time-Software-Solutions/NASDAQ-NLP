@@ -1,0 +1,93 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{amsmath}
+\usepackage{hyperref}
+\usepackage{parskip}
+
+\title{\textbf{Modelling}\\[0.3em]
+\large Part V(d) --- Modelling Report\\
+Asymmetric Sentiment Effects in Earnings Calls}
+\author{NLP Course --- Group Project}
+\date{}
+
+\begin{document}
+\maketitle
+
+\section{Task Definitions}
+
+We frame the prediction problem in two complementary ways:
+
+\begin{itemize}
+  \item \textbf{Regression}: predict CAR$_{[0,3]}$ (a continuous return) from
+        transcript features and controls.
+  \item \textbf{Classification}: predict whether CAR$_{[0,3]} > 0$
+        (binary direction label).
+\end{itemize}
+
+The regression task is the primary one because it supports the formal Wald test
+of the asymmetry hypothesis.
+
+\section{Regression Models}
+
+\subsection{OLS with HC3 Standard Errors}
+
+The main specification is:
+\begin{equation}
+  \text{CAR}_{i,[0,3]} = \beta_0 + \beta_1 \, \text{NegRate}_i +
+  \beta_2 \, \text{PosRate}_i + \mathbf{x}_i^\top \boldsymbol{\gamma} + \varepsilon_i
+\end{equation}
+where controls $\mathbf{x}_i$ include pre-event volatility and year dummies.
+OLS is estimated with HC3 heteroskedasticity-consistent standard errors via
+\texttt{statsmodels}.  The asymmetry test is a Wald test of
+$H_0: \beta_1 + \beta_2 = 0$.
+
+\subsection{Ridge Regression}
+
+Ridge ($\ell_2$ penalty, $\alpha = 1$) is used when high-dimensional features
+(TF-IDF, year dummies) are included to control overfitting.  With only $\sim$155
+training events, plain OLS on 500+ features is severely underdetermined.
+
+\subsection{Random Forest and MLP}
+
+Random Forest (100 trees) and a two-hidden-layer MLP are included as nonlinear
+baselines.  Both use \texttt{random\_state=42} for reproducibility.
+
+\subsection{Null Model}
+
+The null model predicts the training-set mean for every test event.
+Positive OOS $R^2$ means a model beats this naive baseline.
+
+\section{Classification Models}
+
+Binary label: $y = 1$ if CAR$_{[0,3]} > 0$.
+We evaluate five classifiers:
+
+\begin{itemize}
+  \item Naive Bayes (Gaussian, for LM features; Multinomial, for TF-IDF)
+  \item Logistic Regression (\texttt{max\_iter=1000})
+  \item Decision Tree
+  \item Random Forest (100 trees)
+  \item Multi-Layer Perceptron (two hidden layers)
+\end{itemize}
+
+All use \texttt{random\_state=42}.  Class imbalance in the test window
+(positive CARs dominated 2019--2020) means F1 and AUC are more informative
+than accuracy alone.
+
+\section{Time-Series Cross-Validation}
+
+Beyond the single train/test split, we run an expanding-window cross-validation:
+train on 2016$\rightarrow$year $Y$, test on year $Y{+}1$, for $Y \in \{2017, 2018, 2019\}$.
+Pooled OOS $R^2$ averages across all folds gives a more robust estimate
+than a single test window.
+
+\section{Code Reference}
+
+\begin{itemize}
+  \item \texttt{src/nasdaq\_nlp/models/regression.py} --- OLS, Ridge, RF, MLP, Wald test.
+  \item \texttt{src/nasdaq\_nlp/models/classifiers.py} --- classification models.
+  \item \texttt{src/nasdaq\_nlp/evaluation/} --- OOS $R^2$, MAE, AUC utilities.
+  \item \texttt{notebooks/03\_modeling.ipynb} --- full model training and result export.
+\end{itemize}
+
+\end{document}

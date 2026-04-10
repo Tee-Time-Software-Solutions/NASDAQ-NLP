@@ -1,0 +1,84 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{amsmath}
+\usepackage{hyperref}
+\usepackage{parskip}
+
+\title{\textbf{Deployment}\\[0.3em]
+\large Part V(f) --- Modelling Report\\
+Asymmetric Sentiment Effects in Earnings Calls}
+\author{NLP Course --- Group Project}
+\date{}
+
+\begin{document}
+\maketitle
+
+\section{Overview}
+
+We deploy the project as an interactive Streamlit dashboard hosted on Streamlit Cloud.
+The app allows anyone to explore the model outputs and data without needing to
+re-run the pipeline locally.
+
+\textbf{Live URL:}
+\url{https://tee-time-software-solutions-nasdaq-nlp-frontendapp-featu-pvfgpc.streamlit.app/}
+
+\textbf{Source code:}
+\url{https://github.com/Tee-Time-Software-Solutions/NASDAQ-NLP}
+
+\section{Architecture}
+
+The dashboard is organized into four tabs that mirror the four analysis notebooks:
+
+\begin{enumerate}
+  \item \textbf{Data Pipeline} --- Call timeline by ticker and year,
+        after-hours call breakdown, market model parameters ($\hat\alpha$, $\hat\beta$)
+        per ticker, and CAR distribution over time.
+
+  \item \textbf{Feature Extraction} --- Loughran--McDonald sentiment rates by ticker,
+        TF-IDF top terms by model, negative rate heat map (ticker $\times$ year),
+        and transcript length analysis.
+
+  \item \textbf{Modelling} --- Interactive benchmark table with train/test $R^2$,
+        OOS $R^2$, MAE, and Wald $p$-values; actual vs.\ predicted CAR scatter plots.
+
+  \item \textbf{Results} --- Headline Wald test verdict, OLS coefficient comparison,
+        OOS $R^2$ visualization, and economic interpretation of findings.
+\end{enumerate}
+
+A fifth ``Try It Yourself'' tab allows users to input free text and see live LM
+sentiment scoring and a predicted CAR direction.
+
+\section{Data Flow}
+
+The offline pipeline (\texttt{make pipeline}) generates all intermediate CSV files
+to \texttt{outputs/processed/} and final results to \texttt{outputs/results/}.
+A copy of the results CSVs is committed to \texttt{frontend/data/} so the dashboard
+can load pre-computed results without re-running any modeling.
+
+\begin{verbatim}
+make pipeline     # build all data + models -> outputs/
+make serve        # streamlit run frontend/app.py
+\end{verbatim}
+
+\section{Technology Stack}
+
+\begin{itemize}
+  \item \textbf{Frontend}: Streamlit (Python), Altair (interactive charts).
+  \item \textbf{Hosting}: Streamlit Community Cloud (free tier).
+  \item \textbf{Data format}: Pre-computed CSV files; sub-second load times,
+        no live inference.
+\end{itemize}
+
+All charts use Altair for interactive tooltips and zooming.
+A global sidebar provides ticker filtering and CAR window selection
+(CAR$_{[0,1]}$ vs.\ CAR$_{[0,3]}$), propagating the selection to all tabs.
+
+\section{Code Reference}
+
+\begin{itemize}
+  \item \texttt{frontend/app.py} --- main Streamlit entry point.
+  \item \texttt{frontend/data/} --- pre-committed result CSVs served by the app.
+  \item \texttt{frontend/app/src/pages/} --- tab-level page components.
+\end{itemize}
+
+\end{document}
