@@ -8,8 +8,9 @@ Each notebook is self-contained: it imports from src/nasdaq_nlp/ and
 runs the analysis step by step with math explanations as Markdown cells.
 """
 
-import nbformat as nbf
 from pathlib import Path
+
+import nbformat as nbf
 
 NB_DIR = Path("notebooks")
 NB_DIR.mkdir(exist_ok=True)
@@ -38,20 +39,17 @@ def save(nb: nbf.NotebookNode, name: str) -> None:
 
 nb01 = nbf.v4.new_notebook()
 nb01.cells = [
-
     md("""# 01 — Data Pipeline
 **Goal**: Load earnings call transcripts → build event metadata → download market data
 → compute Abnormal Returns, CAR, and ΔVol.
 
 This notebook calls functions from `src/nasdaq_nlp/` and shows the outputs at each step.
 """),
-
     md("""## Step 1: Load Transcripts
 
 We have earnings call transcripts across NASDAQ firms (2016–2020).
 Each file is a Thomson Reuters StreetEvents document in plain text format.
 """),
-
     code("""
 from nasdaq_nlp.data.loader import scan_transcripts, count_by_ticker
 
@@ -59,7 +57,6 @@ records = scan_transcripts()  # returns list[TranscriptRecord]
 print(f"Total transcripts: {len(records)}")
 print("By ticker:", count_by_ticker(records))
 """),
-
     md("""## Step 2: Event Metadata
 
 For the event study to work, we need to know exactly which **trading day**
@@ -71,7 +68,6 @@ the market could react to each call.
 
 We parse the timestamp from each transcript header and apply this rule.
 """),
-
     code("""
 from nasdaq_nlp.data.metadata import build_event_metadata
 import pandas as pd
@@ -84,7 +80,6 @@ print("Calls after market close:", meta['after_market_close'].sum(), "/", len(me
 print()
 meta[['ticker','year','quarter','call_time_et','after_market_close','event_trading_day']].head(10)
 """),
-
     md("""## Step 3: Market Data and Returns
 
 We download daily Adjusted Close prices from Yahoo Finance (yfinance) for all 10 tickers
@@ -98,7 +93,6 @@ where $P_t$ is the Adjusted Close price on day $t$.
 We use *Adjusted* Close (accounts for splits and dividends) so corporate actions
 don't create fake return spikes.
 """),
-
     code("""
 from nasdaq_nlp.data.market import build_market_returns
 
@@ -109,7 +103,6 @@ print(f"Date range: {stocks['date'].min().date()} → {stocks['date'].max().date
 print()
 stocks.groupby('ticker')['return'].describe().round(4)
 """),
-
     md("""## Step 4: Market Model (OLS), Abnormal Returns, CAR, and ΔVol
 
 **The Market Model (OLS):**
@@ -145,7 +138,6 @@ $$\\Delta\\text{Vol}_i = \\sigma(R_{i,+1..+10}) - \\sigma(R_{i,-10..-1})$$
 
 Captures whether the call *increased* or *decreased* return variability.
 """),
-
     code("""
 from nasdaq_nlp.models.market_model import build_event_study
 
@@ -155,7 +147,6 @@ print()
 print("Summary of CAR[0,3] and ΔVol:")
 event_study[['car_01','car_03','ar_0','delta_vol']].describe().round(4)
 """),
-
     code("""
 import matplotlib.pyplot as plt
 import matplotlib
@@ -183,11 +174,9 @@ plt.savefig('outputs/results/distributions.png', bbox_inches='tight')
 plt.show()
 print("Saved → outputs/results/distributions.png")
 """),
-
     md("""## Verification
 Check that all events have complete data (no NaN CAR values).
 """),
-
     code("""
 nan_car = event_study['car_03'].isna().sum()
 nan_vol = event_study['delta_vol'].isna().sum()
@@ -207,7 +196,6 @@ save(nb01, "01_data_pipeline.ipynb")
 
 nb02 = nbf.v4.new_notebook()
 nb02.cells = [
-
     md("""# 02 — Feature Extraction
 
 **Goal**: Extract five types of NLP features from earnings call transcripts.
@@ -220,7 +208,6 @@ nb02.cells = [
 | Word2Vec | 13 | Dense word embeddings |
 | FinBERT | 19-20 | Transformer sentiment |
 """),
-
     md("""## 1. Preprocessing
 
 Before extracting features, we clean each transcript:
@@ -231,7 +218,6 @@ Before extracting features, we clean each transcript:
 We do NOT remove stopwords for lexicon/FinBERT (need complete words).
 For TF-IDF and Word2Vec, we remove stopwords to focus on content words.
 """),
-
     code("""
 from nasdaq_nlp.data.loader import scan_transcripts
 from nasdaq_nlp.preprocessing.text import preprocess_transcript
@@ -249,7 +235,6 @@ print(result['qa_raw'][:300])
 print()
 print(f"Total tokens (full transcript): {len(result['tokens'])}")
 """),
-
     md("""## 2. Loughran–McDonald Lexicon Sentiment
 
 **Math:**
@@ -261,7 +246,6 @@ These rates are our primary sentiment features. We normalise by total words
 to control for transcript length (a 12,000-word call would naturally have
 more negative words than an 8,000-word call, even at the same *rate*).
 """),
-
     code("""
 from nasdaq_nlp.features.lexicon import build_lexicon_features
 
@@ -271,7 +255,6 @@ print()
 print("Top 5 most negative calls:")
 print(lexicon_df.nlargest(5, 'neg_rate')[['ticker','neg_rate','pos_rate']].to_string())
 """),
-
     md("""## 3. N-gram Features  (Session 3)
 
 An n-gram is a contiguous sequence of n words.
@@ -284,7 +267,6 @@ The vocabulary is restricted to the top 500 n-grams by frequency.
 
 Bigrams capture negation (`not strong`) and collocations (`market share`).
 """),
-
     code("""
 from pathlib import Path
 from nasdaq_nlp.data.loader import scan_transcripts
@@ -299,7 +281,6 @@ print()
 print("Top 20 n-grams by corpus frequency:")
 print(get_top_ngrams(vec_ng, X_ng, top_n=20).to_string(index=False))
 """),
-
     md("""## 4. TF-IDF  (Session 7)
 
 TF-IDF weights each word by how important it is to a specific document,
@@ -313,7 +294,6 @@ $$\\text{TF-IDF}(t, d) = \\underbrace{\\frac{\\text{count}(t, d)}{|d|}}_{\\text{
 A high TF-IDF score means the term is frequent in *this* document but rare elsewhere
 → it characterises this document specifically.
 """),
-
     code("""
 from nasdaq_nlp.features.tfidf import build_tfidf_features, top_tfidf_terms_by_ticker
 import pandas as pd
@@ -328,7 +308,6 @@ top_terms = top_tfidf_terms_by_ticker(events, vectorizer, X_tfidf, top_n=5)
 print("Top 5 characteristic terms by ticker:")
 print(top_terms.to_string(index=False))
 """),
-
     md("""## 5. Word2Vec Document Embeddings  (Session 13)
 
 Word2Vec learns a dense vector representation for each word by training a
@@ -342,7 +321,6 @@ $$\\vec{d} = \\frac{1}{|tokens|} \\sum_{w \\in d} \\vec{w}$$
 
 Each document is now a 100-dimensional dense vector, capturing overall semantic content.
 """),
-
     code("""
 from nasdaq_nlp.features.embeddings import build_embedding_features, nearest_neighbors
 
@@ -356,7 +334,6 @@ for word in ['growth', 'risk', 'revenue', 'strong', 'guidance']:
         nn_str = ', '.join(f"{w}({s:.2f})" for w, s in neighbors)
         print(f"  '{word}' → {nn_str}")
 """),
-
     md("""## 6. FinBERT Sentiment  (Sessions 19-20)
 
 FinBERT is BERT fine-tuned on financial text. Unlike the lexicon, it understands
@@ -368,7 +345,6 @@ $$P(\\text{positive}), P(\\text{negative}), P(\\text{neutral}) \\quad \\text{(su
 We average across all sentences in the transcript:
 $$\\bar{P}(\\text{negative}) = \\frac{1}{S}\\sum_{s=1}^{S} P_s(\\text{negative})$$
 """),
-
     code("""
 from pathlib import Path
 finbert_path = Path('outputs/processed/finbert_features.csv')
@@ -383,7 +359,6 @@ else:
     print("Run: from nasdaq_nlp.features.finbert import build_finbert_features; build_finbert_features()")
     print("(Takes ~20-30 min on CPU)")
 """),
-
     code("""
 # Verification: feature extraction complete
 import numpy as np
@@ -405,7 +380,6 @@ save(nb02, "02_feature_extraction.ipynb")
 
 nb03 = nbf.v4.new_notebook()
 nb03.cells = [
-
     md("""# 03 — Modeling
 
 **Goal**: Train all models and build a benchmark comparison table.
@@ -424,7 +398,6 @@ nb03.cells = [
 
 **Train/Test split**: 2016–2018 train | 2019–2020 test (time-based, no look-ahead).
 """),
-
     md("""## Regression Models (OLS)
 
 **Model specification:**
@@ -438,7 +411,6 @@ $$R^2 = 1 - \\frac{\\sum(y_i - \\hat{y}_i)^2}{\\sum(y_i - \\bar{y})^2}$$
 - In-sample R²: fit on training data (2016-2018)
 - Out-of-sample R²: predictions on test data (2019-2020), using training mean as the benchmark
 """),
-
     code("""
 from nasdaq_nlp.models.regression import run_regression_pipeline
 
@@ -446,7 +418,6 @@ benchmark_df, regression_results = run_regression_pipeline()
 print("\\n=== Benchmark Table ===")
 print(benchmark_df.to_string(index=False))
 """),
-
     md("""## Classification Models (Sessions 9-10)
 
 For classification, we convert the regression problem into a binary prediction:
@@ -463,7 +434,6 @@ $$P(y=1 \\mid x) = \\frac{1}{1 + e^{-(\\beta_0 + \\beta_1 x_1 + \\ldots + \\beta
 
 Models the probability of a positive market reaction directly.
 """),
-
     code("""
 from nasdaq_nlp.models.classifiers import run_classifiers
 
@@ -475,7 +445,6 @@ clf_table = pd.DataFrame([nb_results, lr_results])
 print("\\n=== Classifier Results ===")
 print(clf_table[['model','train_accuracy','test_accuracy','test_f1','test_precision','test_recall']].to_string(index=False))
 """),
-
     code("""
 # Combined benchmark view (regression + classification)
 import pandas as pd
@@ -503,7 +472,6 @@ clf_rows = [
 combined = pd.DataFrame(reg_rows + clf_rows)
 print(combined.to_string(index=False))
 """),
-
     md("""## Sanity Checks"""),
     code("""
 # All regression results should have valid R² values
@@ -530,7 +498,6 @@ save(nb03, "03_modeling.ipynb")
 
 nb04 = nbf.v4.new_notebook()
 nb04.cells = [
-
     md("""# 04 — Results: Asymmetry Analysis
 
 **Research question:** Are negative sentiment signals stronger predictors of
@@ -544,7 +511,6 @@ $$H_1: \\beta_{\\text{neg}} + \\beta_{\\text{pos}} \\neq 0 \\quad (\\text{asymme
 
 Rejection of $H_0$ (p < 0.10) supports the asymmetry hypothesis.
 """),
-
     code("""
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -555,7 +521,6 @@ from nasdaq_nlp.models.regression import run_regression_pipeline
 # Run (or reload if already computed)
 benchmark_df, regression_results = run_regression_pipeline()
 """),
-
     md("""## Coefficient Plot
 
 We plot $\\hat{\\beta}_{\\text{neg}}$ and $\\hat{\\beta}_{\\text{pos}}$ for each model.
@@ -564,7 +529,6 @@ If the asymmetry hypothesis holds, the bars should show:
 - **NegRate** coefficient: large and negative (more negative words → lower CAR)
 - **PosRate** coefficient: smaller magnitude (positive words have weaker effect)
 """),
-
     code("""
 import matplotlib.pyplot as plt
 
@@ -595,9 +559,7 @@ plt.savefig('outputs/results/coefficient_plot.png', bbox_inches='tight', dpi=150
 plt.show()
 print("Saved → outputs/results/coefficient_plot.png")
 """),
-
     md("""## Asymmetry Test Results Table"""),
-
     code("""
 # Build asymmetry summary
 asym_path = Path('outputs/results/asymmetry_results.csv')
@@ -610,7 +572,6 @@ if asym_path.exists():
                     c.startswith('coef_finbert')]
     print(asym[display_cols].to_string(index=False))
 """),
-
     md("""## Out-of-Sample R² Comparison
 
 OOS R² measures whether sentiment features help predict *future* market reactions
@@ -622,7 +583,6 @@ where $\\text{MSE}_{\\text{mean}}$ uses the training-period mean as the constant
 
 Positive OOS R² → sentiment adds predictive value.
 """),
-
     code("""
 import matplotlib.pyplot as plt
 
@@ -643,7 +603,6 @@ plt.savefig('outputs/results/oos_r2_plot.png', bbox_inches='tight', dpi=150)
 plt.show()
 print("Saved → outputs/results/oos_r2_plot.png")
 """),
-
     md("""## Summary and Conclusion
 
 ### Findings
@@ -675,7 +634,6 @@ at conventional thresholds with the limited corpus size.
 - **No analyst consensus controls**: missing/beat estimates drive large portion of
   market reaction and should be included in future work.
 """),
-
     code("""
 # Final verification: results files exist
 from pathlib import Path

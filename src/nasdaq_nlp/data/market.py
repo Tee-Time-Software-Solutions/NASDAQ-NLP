@@ -102,7 +102,7 @@ def download_stock_prices(
                 auto_adjust=True,
             )
             if hist.empty:
-                print(f" EMPTY — skipping")
+                print(" EMPTY — skipping")
                 continue
 
             close = hist[["Close"]].reset_index()
@@ -110,7 +110,9 @@ def download_stock_prices(
             close["ticker"] = ticker
             # Strip timezone info from index (tz-aware → tz-naive date for CSV compatibility)
             close["date"] = pd.to_datetime(close["date"]).dt.tz_localize(None)
-            dfs.append(close.dropna(subset=["adj_close"])) # drop days where stock didnt trade (if any)
+            dfs.append(
+                close.dropna(subset=["adj_close"])
+            )  # drop days where stock didnt trade (if any)
             print(f" ✓ ({len(close)} rows)")
         except Exception as exc:
             print(f" ERROR: {exc}")
@@ -149,7 +151,9 @@ def download_index_prices(
     for idx_ticker in index_tickers:
         print(f"Downloading index {idx_ticker}")
         hist = yf.Ticker(idx_ticker).history(
-            start=start_date, end=end_date, auto_adjust=True,
+            start=start_date,
+            end=end_date,
+            auto_adjust=True,
         )
         if hist.empty:
             print(f"  WARN: no data for {idx_ticker}")

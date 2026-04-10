@@ -56,10 +56,10 @@ from nasdaq_nlp.config import (
 )
 from nasdaq_nlp.preprocessing.text import preprocess_transcript
 
-
 # ---------------------------------------------------------------------------
 # TF-IDF feature builder
 # ---------------------------------------------------------------------------
+
 
 def build_tfidf_matrix(
     file_paths: list[Path],
@@ -103,8 +103,8 @@ def build_tfidf_matrix(
         ngram_range=ngram_range,
         min_df=min_df,
         sublinear_tf=sublinear_tf,  # use log(1+TF) for smoother term weighting
-        norm="l2",                  # L2-normalise each document vector (unit length)
-                                    # so document length doesn't dominate similarity
+        norm="l2",  # L2-normalise each document vector (unit length)
+        # so document length doesn't dominate similarity
         token_pattern=r"[a-z']+",
     )
 
@@ -121,7 +121,8 @@ def build_tfidf_matrix(
 # Top terms per ticker (for visualisation in notebook 02)
 # ---------------------------------------------------------------------------
 
-def  top_tfidf_terms_by_ticker(
+
+def top_tfidf_terms_by_ticker(
     events: pd.DataFrame,
     vectorizer: TfidfVectorizer,
     X: np.ndarray,
@@ -158,12 +159,14 @@ def  top_tfidf_terms_by_ticker(
         # Top-n terms by mean TF-IDF
         top_indices = np.argsort(mean_tfidf)[::-1][:top_n]
         for rank, idx in enumerate(top_indices, start=1):
-            rows.append({
-                "ticker": ticker,
-                "term": feature_names[idx],
-                "mean_tfidf": float(mean_tfidf[idx]),
-                "rank": rank,
-            })
+            rows.append(
+                {
+                    "ticker": ticker,
+                    "term": feature_names[idx],
+                    "mean_tfidf": float(mean_tfidf[idx]),
+                    "rank": rank,
+                }
+            )
 
     return pd.DataFrame(rows)
 
@@ -171,6 +174,7 @@ def  top_tfidf_terms_by_ticker(
 # ---------------------------------------------------------------------------
 # Pipeline function
 # ---------------------------------------------------------------------------
+
 
 def build_tfidf_features(
     study_path: Path = EVENT_STUDY_PATH,
@@ -196,8 +200,7 @@ def build_tfidf_features(
     # Package as DataFrame: identifier columns + one column per TF-IDF feature
     feature_df = pd.DataFrame(X, columns=[f"tfidf_{f}" for f in feature_names])
     result = pd.concat(
-        [events[["ticker", "file_name", "event_trading_day"]].reset_index(drop=True),
-         feature_df],
+        [events[["ticker", "file_name", "event_trading_day"]].reset_index(drop=True), feature_df],
         axis=1,
     )
 

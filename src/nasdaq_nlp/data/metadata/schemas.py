@@ -15,10 +15,9 @@ from __future__ import annotations
 import re
 from datetime import datetime
 from typing import Optional
-
-from pydantic import BaseModel, field_validator
 from zoneinfo import ZoneInfo
 
+from pydantic import BaseModel, field_validator
 
 # ---------------------------------------------------------------------------
 # Timezone
@@ -40,25 +39,50 @@ MARKET_CLOSE_HOUR_ET = 16
 
 TRADING_HOLIDAYS: set[datetime] = {
     # 2016
-    datetime(2016, 1, 1),  datetime(2016, 1, 18), datetime(2016, 2, 15),
-    datetime(2016, 5, 30), datetime(2016, 7, 4),  datetime(2016, 9, 5),
-    datetime(2016, 11, 24),datetime(2016, 12, 26),
+    datetime(2016, 1, 1),
+    datetime(2016, 1, 18),
+    datetime(2016, 2, 15),
+    datetime(2016, 5, 30),
+    datetime(2016, 7, 4),
+    datetime(2016, 9, 5),
+    datetime(2016, 11, 24),
+    datetime(2016, 12, 26),
     # 2017
-    datetime(2017, 1, 2),  datetime(2017, 1, 16), datetime(2017, 2, 20),
-    datetime(2017, 5, 29), datetime(2017, 7, 4),  datetime(2017, 9, 4),
-    datetime(2017, 11, 23),datetime(2017, 12, 25),
+    datetime(2017, 1, 2),
+    datetime(2017, 1, 16),
+    datetime(2017, 2, 20),
+    datetime(2017, 5, 29),
+    datetime(2017, 7, 4),
+    datetime(2017, 9, 4),
+    datetime(2017, 11, 23),
+    datetime(2017, 12, 25),
     # 2018
-    datetime(2018, 1, 1),  datetime(2018, 1, 15), datetime(2018, 2, 19),
-    datetime(2018, 5, 28), datetime(2018, 7, 4),  datetime(2018, 9, 3),
-    datetime(2018, 11, 22),datetime(2018, 12, 25),
+    datetime(2018, 1, 1),
+    datetime(2018, 1, 15),
+    datetime(2018, 2, 19),
+    datetime(2018, 5, 28),
+    datetime(2018, 7, 4),
+    datetime(2018, 9, 3),
+    datetime(2018, 11, 22),
+    datetime(2018, 12, 25),
     # 2019
-    datetime(2019, 1, 1),  datetime(2019, 1, 21), datetime(2019, 2, 18),
-    datetime(2019, 5, 27), datetime(2019, 7, 4),  datetime(2019, 9, 2),
-    datetime(2019, 11, 28),datetime(2019, 12, 25),
+    datetime(2019, 1, 1),
+    datetime(2019, 1, 21),
+    datetime(2019, 2, 18),
+    datetime(2019, 5, 27),
+    datetime(2019, 7, 4),
+    datetime(2019, 9, 2),
+    datetime(2019, 11, 28),
+    datetime(2019, 12, 25),
     # 2020
-    datetime(2020, 1, 1),  datetime(2020, 1, 20), datetime(2020, 2, 17),
-    datetime(2020, 5, 25), datetime(2020, 7, 3),  datetime(2020, 9, 7),
-    datetime(2020, 11, 26),datetime(2020, 12, 25),
+    datetime(2020, 1, 1),
+    datetime(2020, 1, 20),
+    datetime(2020, 2, 17),
+    datetime(2020, 5, 25),
+    datetime(2020, 7, 3),
+    datetime(2020, 9, 7),
+    datetime(2020, 11, 26),
+    datetime(2020, 12, 25),
 }
 
 # ---------------------------------------------------------------------------
@@ -66,13 +90,30 @@ TRADING_HOLIDAYS: set[datetime] = {
 # ---------------------------------------------------------------------------
 
 MONTH_MAP: dict[str, int] = {
-    "JANUARY": 1,  "FEBRUARY": 2,  "MARCH": 3,     "APRIL": 4,
-    "MAY": 5,      "JUNE": 6,      "JULY": 7,       "AUGUST": 8,
-    "SEPTEMBER": 9,"OCTOBER": 10,  "NOVEMBER": 11,  "DECEMBER": 12,
+    "JANUARY": 1,
+    "FEBRUARY": 2,
+    "MARCH": 3,
+    "APRIL": 4,
+    "MAY": 5,
+    "JUNE": 6,
+    "JULY": 7,
+    "AUGUST": 8,
+    "SEPTEMBER": 9,
+    "OCTOBER": 10,
+    "NOVEMBER": 11,
+    "DECEMBER": 12,
     # Three-letter abbreviations
-    "JAN": 1, "FEB": 2, "MAR": 3, "APR": 4,
-    "JUN": 6, "JUL": 7, "AUG": 8,
-    "SEP": 9, "OCT": 10,"NOV": 11,"DEC": 12,
+    "JAN": 1,
+    "FEB": 2,
+    "MAR": 3,
+    "APR": 4,
+    "JUN": 6,
+    "JUL": 7,
+    "AUG": 8,
+    "SEP": 9,
+    "OCT": 10,
+    "NOV": 11,
+    "DEC": 12,
 }
 
 # ---------------------------------------------------------------------------
@@ -80,10 +121,18 @@ MONTH_MAP: dict[str, int] = {
 # ---------------------------------------------------------------------------
 
 QUARTER_MAP: dict[int, str] = {
-    1: "Q1", 2: "Q1", 3: "Q1",
-    4: "Q2", 5: "Q2", 6: "Q2",
-    7: "Q3", 8: "Q3", 9: "Q3",
-    10: "Q4", 11: "Q4", 12: "Q4",
+    1: "Q1",
+    2: "Q1",
+    3: "Q1",
+    4: "Q2",
+    5: "Q2",
+    6: "Q2",
+    7: "Q3",
+    8: "Q3",
+    9: "Q3",
+    10: "Q4",
+    11: "Q4",
+    12: "Q4",
 }
 
 # ---------------------------------------------------------------------------
@@ -106,6 +155,7 @@ Handles: AM/PM, single-digit day, varying minutes.
 # ---------------------------------------------------------------------------
 # Pydantic schema for one event-metadata row
 # ---------------------------------------------------------------------------
+
 
 class EventMetadataRecord(BaseModel):
     """One row of event_metadata.csv — one earnings call, fully resolved.

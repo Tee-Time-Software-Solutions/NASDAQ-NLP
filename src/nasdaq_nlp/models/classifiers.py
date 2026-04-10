@@ -30,9 +30,6 @@ Pass a subset of these to results_to_df(results, metrics=[...]):
 
 from __future__ import annotations
 
-from pathlib import Path
-
-import numpy as np
 import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
@@ -41,10 +38,9 @@ from sklearn.neural_network import MLPClassifier
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.tree import DecisionTreeClassifier
 
-from nasdaq_nlp.config import TRAIN_YEARS, TEST_YEARS
+from nasdaq_nlp.config import TEST_YEARS, TRAIN_YEARS
 from nasdaq_nlp.evaluation.metrics import classification_report_dict
 from nasdaq_nlp.models.regression import resolve_features
-
 
 # ---------------------------------------------------------------------------
 # Classifier registry
@@ -54,12 +50,12 @@ from nasdaq_nlp.models.regression import resolve_features
 
 CLASSIFIERS: dict[str, object] = {
     "NaiveBayes": lambda: ComplementNB(alpha=1.0),
-    "LogReg":     lambda: LogisticRegression(C=1.0, penalty="l2", solver="lbfgs",
-                                              max_iter=1000, random_state=42),
-    "Tree":       lambda: DecisionTreeClassifier(max_depth=5, random_state=42),
-    "RF":         lambda: RandomForestClassifier(n_estimators=100, random_state=42),
-    "MLP":        lambda: MLPClassifier(hidden_layer_sizes=(64, 32),
-                                         max_iter=1000, random_state=42),
+    "LogReg": lambda: LogisticRegression(
+        C=1.0, penalty="l2", solver="lbfgs", max_iter=1000, random_state=42
+    ),
+    "Tree": lambda: DecisionTreeClassifier(max_depth=5, random_state=42),
+    "RF": lambda: RandomForestClassifier(n_estimators=100, random_state=42),
+    "MLP": lambda: MLPClassifier(hidden_layer_sizes=(64, 32), max_iter=1000, random_state=42),
 }
 
 # Metrics returned for every classifier experiment.
@@ -70,6 +66,7 @@ _ALL_METRICS = ["accuracy", "f1", "precision", "recall", "auc"]
 # ---------------------------------------------------------------------------
 # Core classifier experiment runner
 # ---------------------------------------------------------------------------
+
 
 def run_classifier_experiment(
     df: pd.DataFrame,
@@ -119,17 +116,19 @@ def run_classifier_experiment(
     sub["label"] = (sub[target_col] > 0).astype(int)  # y=1: stock beat market-model prediction
 
     train_mask = sub["year"].isin(TRAIN_YEARS)
-    test_mask  = sub["year"].isin(TEST_YEARS)
+    test_mask = sub["year"].isin(TEST_YEARS)
 
     X_train = sub.loc[train_mask, feature_cols].values
-    X_test  = sub.loc[test_mask,  feature_cols].values
+    X_test = sub.loc[test_mask, feature_cols].values
     y_train = sub.loc[train_mask, "label"].values
-    y_test  = sub.loc[test_mask,  "label"].values
+    y_test = sub.loc[test_mask, "label"].values
 
-    print(f"\n[{name}]  "
-          f"train={len(y_train)} ({y_train.mean():.1%} pos) | "
-          f"test={len(y_test)} ({y_test.mean():.1%} pos) | "
-          f"features={len(feature_cols)}")
+    print(
+        f"\n[{name}]  "
+        f"train={len(y_train)} ({y_train.mean():.1%} pos) | "
+        f"test={len(y_test)} ({y_test.mean():.1%} pos) | "
+        f"features={len(feature_cols)}"
+    )
 
     # ComplementNB requires non-negative inputs → scale everything to [0, 1].
     # Word2Vec embeddings can be negative, so we apply this for NaiveBayes regardless
@@ -137,26 +136,25 @@ def run_classifier_experiment(
     if classifier_name == "NaiveBayes":
         scaler = MinMaxScaler()
         X_train = scaler.fit_transform(X_train)
-        X_test  = scaler.transform(X_test)
+        X_test = scaler.transform(X_test)
 
     model = CLASSIFIERS[classifier_name]()
     model.fit(X_train, y_train)
 
     y_pred_train = model.predict(X_train)
-    y_pred_test  = model.predict(X_test)
-    y_prob_test  = (model.predict_proba(X_test)[:, 1]
-                    if hasattr(model, "predict_proba") else None)
+    y_pred_test = model.predict(X_test)
+    y_prob_test = model.predict_proba(X_test)[:, 1] if hasattr(model, "predict_proba") else None
 
     train_metrics = classification_report_dict(y_train, y_pred_train)
-    test_metrics  = classification_report_dict(y_test,  y_pred_test, y_prob_test)
+    test_metrics = classification_report_dict(y_test, y_pred_test, y_prob_test)
 
     return {
-        "model":          name,
-        "target":         f"{target_col} > 0",
-        "classifier":     classifier_name,
-        "features":       " + ".join(feature_set_names),
-        "n_train":        int(len(y_train)),
-        "n_test":         int(len(y_test)),
+        "model": name,
+        "target": f"{target_col} > 0",
+        "classifier": classifier_name,
+        "features": " + ".join(feature_set_names),
+        "n_train": int(len(y_train)),
+        "n_test": int(len(y_test)),
         "train_accuracy": round(train_metrics["accuracy"], 4),
         **{f"test_{k}": round(v, 4) for k, v in test_metrics.items()},
     }
@@ -167,8 +165,15 @@ def run_classifier_experiment(
 # ---------------------------------------------------------------------------
 
 # Default columns to show — pass a custom list to override
-DEFAULT_CLF_METRICS = ["train_accuracy", "test_accuracy", "test_f1", "test_precision",
-                        "test_recall", "test_auc"]
+DEFAULT_CLF_METRICS = [
+    "train_accuracy",
+    "test_accuracy",
+    "test_f1",
+    "test_precision",
+    "test_recall",
+    "test_auc",
+]
+
 
 def results_to_df(
     results: list[dict],

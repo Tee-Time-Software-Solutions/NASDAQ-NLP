@@ -65,19 +65,20 @@ from nasdaq_nlp.config import (
     FINBERT_MODEL_NAME,
     ensure_output_dirs,
 )
-from nasdaq_nlp.preprocessing.text import strip_header, strip_boilerplate_lines
-
+from nasdaq_nlp.preprocessing.text import strip_boilerplate_lines, strip_header
 
 # ---------------------------------------------------------------------------
 # Configuration dataclass
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class FinBertConfig:
     """Hyperparameters for FinBERT inference."""
-    model_name: str = FINBERT_MODEL_NAME         # "ProsusAI/finbert"
-    max_length: int = FINBERT_MAX_LENGTH         # 256 tokens per sentence (BERT max = 512)
-    batch_size: int = FINBERT_BATCH_SIZE         # sentences per forward pass
+
+    model_name: str = FINBERT_MODEL_NAME  # "ProsusAI/finbert"
+    max_length: int = FINBERT_MAX_LENGTH  # 256 tokens per sentence (BERT max = 512)
+    batch_size: int = FINBERT_BATCH_SIZE  # sentences per forward pass
 
 
 # ---------------------------------------------------------------------------
@@ -122,15 +123,17 @@ def split_sentences(text: str) -> list[str]:
 # Batch iterator
 # ---------------------------------------------------------------------------
 
+
 def batch_iter(items: list[str], batch_size: int) -> Iterator[list[str]]:
     """Yield successive chunks of size batch_size from items."""
     for i in range(0, len(items), batch_size):
-        yield items[i: i + batch_size]
+        yield items[i : i + batch_size]
 
 
 # ---------------------------------------------------------------------------
 # FinBERT pipeline (lazy import — only load torch/transformers when actually needed)
 # ---------------------------------------------------------------------------
+
 
 def build_finbert_pipeline(cfg: FinBertConfig):
     """Build and return the HuggingFace text-classification pipeline for FinBERT.
@@ -159,7 +162,7 @@ def build_finbert_pipeline(cfg: FinBertConfig):
         tokenizer=tokenizer,
         truncation=True,
         max_length=cfg.max_length,
-        top_k=None,          # return all class scores (not just top-1)
+        top_k=None,  # return all class scores (not just top-1)
     )
     print("FinBERT loaded ✓")
     return clf
@@ -168,6 +171,7 @@ def build_finbert_pipeline(cfg: FinBertConfig):
 # ---------------------------------------------------------------------------
 # Score aggregation
 # ---------------------------------------------------------------------------
+
 
 def aggregate_sentence_scores(batch_results: list) -> dict[str, float]:
     """Average FinBERT scores across all sentences in a transcript.
@@ -190,6 +194,7 @@ def aggregate_sentence_scores(batch_results: list) -> dict[str, float]:
     dict with keys: finbert_pos_mean, finbert_neg_mean, finbert_neu_mean
     """
     from collections import defaultdict
+
     sums: dict[str, float] = defaultdict(float)
     n_sentences = 0
 
@@ -217,6 +222,7 @@ def aggregate_sentence_scores(batch_results: list) -> dict[str, float]:
 # ---------------------------------------------------------------------------
 # Score one transcript
 # ---------------------------------------------------------------------------
+
 
 def score_transcript(
     raw_text: str,
@@ -260,6 +266,7 @@ def score_transcript(
 # ---------------------------------------------------------------------------
 # Pipeline function
 # ---------------------------------------------------------------------------
+
 
 def build_finbert_features(
     study_path: Path = EVENT_STUDY_PATH,
@@ -317,7 +324,9 @@ def build_finbert_features(
         raw_text = file_path.read_text(encoding="utf-8", errors="ignore")
 
         # Count sentences before scoring so we can log them
-        from nasdaq_nlp.preprocessing.text import strip_header, strip_boilerplate_lines as _sbp
+        from nasdaq_nlp.preprocessing.text import strip_boilerplate_lines as _sbp
+        from nasdaq_nlp.preprocessing.text import strip_header
+
         _cleaned = strip_header(raw_text)
         _cleaned = _sbp(_cleaned)
         n_sentences = len(split_sentences(_cleaned))
@@ -326,12 +335,14 @@ def build_finbert_features(
         elapsed = time.time() - t0
         elapsed_times.append(elapsed)
 
-        rows.append({
-            "ticker": event["ticker"],
-            "file_name": event["file_name"],
-            "event_trading_day": event["event_trading_day"],
-            **scores,
-        })
+        rows.append(
+            {
+                "ticker": event["ticker"],
+                "file_name": event["file_name"],
+                "event_trading_day": event["event_trading_day"],
+                **scores,
+            }
+        )
 
         # ETA: mean time per transcript × remaining
         avg_t = sum(elapsed_times) / len(elapsed_times)
@@ -341,7 +352,7 @@ def build_finbert_features(
         print(
             f"  [{i:>3}/{total}] {event['ticker']:<5} {event['file_name']:<40} "
             f"{n_sentences:>4} sentences  {elapsed:.1f}s/transcript  "
-            f"elapsed {int(total_elapsed//60)}m{int(total_elapsed%60):02d}s  ETA {eta_str}  "
+            f"elapsed {int(total_elapsed // 60)}m{int(total_elapsed % 60):02d}s  ETA {eta_str}  "
             f"pos={scores['finbert_pos_mean']:.3f} neg={scores['finbert_neg_mean']:.3f} "
             f"neu={scores['finbert_neu_mean']:.3f}"
         )

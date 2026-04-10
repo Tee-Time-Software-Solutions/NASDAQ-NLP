@@ -34,13 +34,12 @@ import numpy as np
 import pandas as pd
 from sklearn.feature_extraction.text import CountVectorizer
 
-from nasdaq_nlp.config import EVENT_STUDY_PATH, ensure_output_dirs
 from nasdaq_nlp.preprocessing.text import preprocess_transcript
-
 
 # ---------------------------------------------------------------------------
 # N-gram feature builder
 # ---------------------------------------------------------------------------
+
 
 def build_ngram_matrix(
     file_paths: list[Path],
@@ -87,9 +86,9 @@ def build_ngram_matrix(
 
     # Fit CountVectorizer on the full corpus
     vectorizer = CountVectorizer(
-        ngram_range=ngram_range,    # e.g. (1,2) for unigrams + bigrams
+        ngram_range=ngram_range,  # e.g. (1,2) for unigrams + bigrams
         max_features=max_features,  # keep top 500 n-grams
-        min_df=min_df,              # must appear in ≥2 documents
+        min_df=min_df,  # must appear in ≥2 documents
         analyzer="word",
         token_pattern=r"[a-z']+",  # already lowercased, no punctuation
     )
@@ -129,12 +128,14 @@ def get_top_ngrams(
     pd.DataFrame with columns ['ngram', 'total_count', 'doc_frequency']
     """
     feature_names = vectorizer.get_feature_names_out()
-    total_counts = X.sum(axis=0)           # sum across all documents per n-gram
-    doc_freq = (X > 0).sum(axis=0)        # number of documents containing each n-gram
+    total_counts = X.sum(axis=0)  # sum across all documents per n-gram
+    doc_freq = (X > 0).sum(axis=0)  # number of documents containing each n-gram
 
-    df = pd.DataFrame({
-        "ngram": feature_names,
-        "total_count": total_counts,
-        "doc_frequency": doc_freq,
-    })
+    df = pd.DataFrame(
+        {
+            "ngram": feature_names,
+            "total_count": total_counts,
+            "doc_frequency": doc_freq,
+        }
+    )
     return df.sort_values("total_count", ascending=False).head(top_n).reset_index(drop=True)

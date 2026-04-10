@@ -67,11 +67,11 @@ from numpy.linalg import lstsq
 from nasdaq_nlp.config import (
     EST_END,
     EST_START,
-    EVENT_METADATA_PATH,
-    EVENT_STUDY_PATH,
     EVENT_END_LONG,
     EVENT_END_SHORT,
+    EVENT_METADATA_PATH,
     EVENT_START,
+    EVENT_STUDY_PATH,
     INDEX_RETURNS_PATH,
     MARKET_MODEL_PATH,
     STOCK_RETURNS_PATH,
@@ -82,10 +82,10 @@ from nasdaq_nlp.config import (
     ensure_output_dirs,
 )
 
-
 # ---------------------------------------------------------------------------
 # Event-time panel builder
 # ---------------------------------------------------------------------------
+
 
 def build_event_panel(
     meta: pd.DataFrame,
@@ -139,13 +139,13 @@ def build_event_panel(
         ticker = row["ticker"]
         event_day = pd.Timestamp(row["event_trading_day"])
         # Use the event's assigned market index; fall back to default
-        mkt_idx = row.get("market_index", default_index) if "market_index" in row.index else default_index
+        mkt_idx = (
+            row.get("market_index", default_index) if "market_index" in row.index else default_index
+        )
         index_map = index_maps.get(mkt_idx, index_maps[default_index])
 
         # Get all trading dates for this ticker, sorted
-        ticker_dates = sorted(
-            stock_returns.loc[stock_returns["ticker"] == ticker, "date"].tolist()
-        )
+        ticker_dates = sorted(stock_returns.loc[stock_returns["ticker"] == ticker, "date"].tolist())
         ticker_dates_arr = pd.to_datetime(ticker_dates)
 
         # Find the position of event_day in the ticker's trading calendar
@@ -156,7 +156,7 @@ def build_event_panel(
         event_pos = date_to_pos[event_day]
 
         # We need relative days from EST_START to max(EVENT_END_LONG, VOL_POST_END)
-        rel_start = EST_START            # -120
+        rel_start = EST_START  # -120
         rel_end = max(EVENT_END_LONG, VOL_POST_END)  # +10
 
         for rel_day in range(rel_start, rel_end + 1):
@@ -170,16 +170,18 @@ def build_event_panel(
             stock_ret = stock_returns_indexed.get((ticker, cal_date), np.nan)
             market_ret = index_map.get(cal_date, np.nan)
 
-            rows.append({
-                "event_id": event_id,
-                "ticker": ticker,
-                "file_name": row["file_name"],
-                "event_trading_day": event_day,
-                "date": cal_date,
-                "relative_day": rel_day,
-                "stock_return": stock_ret,
-                "market_return": market_ret,
-            })
+            rows.append(
+                {
+                    "event_id": event_id,
+                    "ticker": ticker,
+                    "file_name": row["file_name"],
+                    "event_trading_day": event_day,
+                    "date": cal_date,
+                    "relative_day": rel_day,
+                    "stock_return": stock_ret,
+                    "market_return": market_ret,
+                }
+            )
 
     panel = pd.DataFrame(rows)
     return panel
@@ -188,6 +190,7 @@ def build_event_panel(
 # ---------------------------------------------------------------------------
 # OLS market model estimation
 # ---------------------------------------------------------------------------
+
 
 def estimate_market_model(panel: pd.DataFrame) -> pd.DataFrame:
     """Estimate α and β for each event using the estimation window (days -120 to -20).
@@ -205,8 +208,7 @@ def estimate_market_model(panel: pd.DataFrame) -> pd.DataFrame:
     for event_id, event_df in panel.groupby("event_id"):
         # Restrict to the estimation window: days -120 to -20
         est = event_df[
-            (event_df["relative_day"] >= EST_START) &
-            (event_df["relative_day"] <= EST_END)
+            (event_df["relative_day"] >= EST_START) & (event_df["relative_day"] <= EST_END)
         ].dropna(subset=["stock_return", "market_return"])
 
         n_obs = len(est)
@@ -222,15 +224,17 @@ def estimate_market_model(panel: pd.DataFrame) -> pd.DataFrame:
         coeffs, _, _, _ = lstsq(X, y, rcond=None)
         alpha, beta = coeffs
 
-        results.append({
-            "event_id": event_id,
-            "ticker": est["ticker"].iloc[0],
-            "file_name": est["file_name"].iloc[0],
-            "event_trading_day": est["event_trading_day"].iloc[0],
-            "alpha": alpha,
-            "beta": beta,
-            "n_obs_estimation": n_obs,
-        })
+        results.append(
+            {
+                "event_id": event_id,
+                "ticker": est["ticker"].iloc[0],
+                "file_name": est["file_name"].iloc[0],
+                "event_trading_day": est["event_trading_day"].iloc[0],
+                "alpha": alpha,
+                "beta": beta,
+                "n_obs_estimation": n_obs,
+            }
+        )
 
     return pd.DataFrame(results)
 
@@ -238,6 +242,7 @@ def estimate_market_model(panel: pd.DataFrame) -> pd.DataFrame:
 # ---------------------------------------------------------------------------
 # Abnormal returns and CAR
 # ---------------------------------------------------------------------------
+
 
 def compute_abnormal_returns(
     panel: pd.DataFrame,
@@ -258,8 +263,8 @@ def compute_abnormal_returns(
 
     # Filter to event window: days 0 to EVENT_END_LONG (+3)
     event_window = panel_with_params[
-        (panel_with_params["relative_day"] >= EVENT_START) &
-        (panel_with_params["relative_day"] <= EVENT_END_LONG)
+        (panel_with_params["relative_day"] >= EVENT_START)
+        & (panel_with_params["relative_day"] <= EVENT_END_LONG)
     ].copy()
 
     # AR = actual return - expected return
@@ -293,12 +298,14 @@ def compute_car(ar_df: pd.DataFrame) -> pd.DataFrame:
             clean = [v for v in vals if not np.isnan(v)]
             return float(np.sum(clean)) if clean else np.nan
 
-        car_rows.append({
-            "event_id": event_id,
-            "car_01": sum_ar(0, EVENT_END_SHORT),   # CAR[0,1]
-            "car_03": sum_ar(0, EVENT_END_LONG),    # CAR[0,3]
-            "ar_0": ar_by_day.get(0, np.nan),       # day-0 AR only (immediate)
-        })
+        car_rows.append(
+            {
+                "event_id": event_id,
+                "car_01": sum_ar(0, EVENT_END_SHORT),  # CAR[0,1]
+                "car_03": sum_ar(0, EVENT_END_LONG),  # CAR[0,3]
+                "ar_0": ar_by_day.get(0, np.nan),  # day-0 AR only (immediate)
+            }
+        )
 
     return pd.DataFrame(car_rows)
 
@@ -306,6 +313,7 @@ def compute_car(ar_df: pd.DataFrame) -> pd.DataFrame:
 # ---------------------------------------------------------------------------
 # Volatility change
 # ---------------------------------------------------------------------------
+
 
 def compute_volatility_change(
     panel: pd.DataFrame,
@@ -342,14 +350,18 @@ def compute_volatility_change(
 
         pre_vol = float(np.std(pre_returns, ddof=1)) if len(pre_returns) >= 3 else np.nan
         post_vol = float(np.std(post_returns, ddof=1)) if len(post_returns) >= 3 else np.nan
-        delta_vol = post_vol - pre_vol if (not np.isnan(pre_vol) and not np.isnan(post_vol)) else np.nan
+        delta_vol = (
+            post_vol - pre_vol if (not np.isnan(pre_vol) and not np.isnan(post_vol)) else np.nan
+        )
 
-        results.append({
-            "event_id": event_id,
-            "pre_vol": pre_vol,
-            "post_vol": post_vol,
-            "delta_vol": delta_vol,
-        })
+        results.append(
+            {
+                "event_id": event_id,
+                "pre_vol": pre_vol,
+                "post_vol": post_vol,
+                "delta_vol": delta_vol,
+            }
+        )
 
     return pd.DataFrame(results)
 
@@ -357,6 +369,7 @@ def compute_volatility_change(
 # ---------------------------------------------------------------------------
 # Main pipeline function
 # ---------------------------------------------------------------------------
+
 
 def build_event_study(
     metadata_path=EVENT_METADATA_PATH,
@@ -406,10 +419,8 @@ def build_event_study(
     vol_df = compute_volatility_change(panel, model_params)
 
     # Step 5: Merge everything
-    event_study = (
-        model_params
-        .merge(car_df, on="event_id", how="left")
-        .merge(vol_df, on="event_id", how="left")
+    event_study = model_params.merge(car_df, on="event_id", how="left").merge(
+        vol_df, on="event_id", how="left"
     )
 
     # Attach file_path from metadata for use in feature extraction

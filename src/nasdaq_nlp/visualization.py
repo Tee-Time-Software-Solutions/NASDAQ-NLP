@@ -13,25 +13,24 @@ import pandas as pd
 
 from nasdaq_nlp.config import RESULTS_DIR
 
-
 # ---------------------------------------------------------------------------
 # Colour maps
 # ---------------------------------------------------------------------------
 
 REGRESSOR_COLOURS = {
-    "OLS":   "#4C72B0",
+    "OLS": "#4C72B0",
     "Ridge": "#55A868",
-    "RF":    "#C44E52",
-    "MLP":   "#8172B2",
-    "Null":  "#AAAAAA",
+    "RF": "#C44E52",
+    "MLP": "#8172B2",
+    "Null": "#AAAAAA",
 }
 
 CLF_COLOURS = {
     "NaiveBayes": "#4C72B0",
-    "LogReg":     "#55A868",
-    "Tree":       "#C44E52",
-    "RF":         "#8172B2",
-    "MLP":        "#CCB974",
+    "LogReg": "#55A868",
+    "Tree": "#C44E52",
+    "RF": "#8172B2",
+    "MLP": "#CCB974",
 }
 
 
@@ -54,6 +53,7 @@ def _legend(cmap: dict) -> list:
 # ---------------------------------------------------------------------------
 # Main plot
 # ---------------------------------------------------------------------------
+
 
 def plot_benchmark(
     reg_df: "pd.DataFrame",
@@ -81,14 +81,14 @@ def plot_benchmark(
     -------
     Path to the saved figure.
     """
-    reg_03  = reg_df[reg_df["target"] == "car_03"].reset_index(drop=True)
+    reg_03 = reg_df[reg_df["target"] == "car_03"].reset_index(drop=True)
     wald_df = reg_03[reg_03["wald_p"].notna()].reset_index(drop=True)
 
     fig, axes = plt.subplots(3, 2, figsize=(16, 15))
     fig.suptitle("Benchmark: Regression & Classification", fontsize=14, fontweight="bold", y=1.01)
 
     names = reg_03["model"].tolist()
-    cols  = _bar_colours(names, REGRESSOR_COLOURS)
+    cols = _bar_colours(names, REGRESSOR_COLOURS)
 
     # Panel (0,0) — OOS R²
     ax = axes[0, 0]
@@ -99,15 +99,22 @@ def plot_benchmark(
     ax.set_title("OOS R² — Regression (CAR[0,3])")
     ax.legend(handles=_legend(REGRESSOR_COLOURS), fontsize=8, loc="lower right")
     for bar, v in zip(bars, vals):
-        ax.text(v + 0.001, bar.get_y() + bar.get_height() / 2,
-                f"{v:.3f}", va="center", ha="left", fontsize=7)
+        ax.text(
+            v + 0.001,
+            bar.get_y() + bar.get_height() / 2,
+            f"{v:.3f}",
+            va="center",
+            ha="left",
+            fontsize=7,
+        )
 
     # Panel (0,1) — Train vs Test R²
     ax = axes[0, 1]
     x, w = np.arange(len(names)), 0.38
-    ax.barh(x + w / 2, reg_03["train_r2"], w, color="#4C72B0", label="Train R²",  alpha=0.85)
-    ax.barh(x - w / 2, reg_03["test_r2"],  w, color="#C44E52", label="Test R²",   alpha=0.85)
-    ax.set_yticks(x); ax.set_yticklabels(names, fontsize=8)
+    ax.barh(x + w / 2, reg_03["train_r2"], w, color="#4C72B0", label="Train R²", alpha=0.85)
+    ax.barh(x - w / 2, reg_03["test_r2"], w, color="#C44E52", label="Test R²", alpha=0.85)
+    ax.set_yticks(x)
+    ax.set_yticklabels(names, fontsize=8)
     ax.axvline(0, color="black", lw=0.8)
     ax.set_xlabel("R²")
     ax.set_title("Train vs Test R² — overfitting check")
@@ -115,53 +122,80 @@ def plot_benchmark(
 
     # Panel (1,0) — MAE
     ax = axes[1, 0]
-    mae  = reg_03["mae"].tolist()
+    mae = reg_03["mae"].tolist()
     bars = ax.barh(names, mae, color=cols, edgecolor="white", height=0.6)
     ax.set_xlabel("Mean Absolute Error (CAR units)")
     ax.set_title("MAE — Regression (lower is better)")
     ax.legend(handles=_legend(REGRESSOR_COLOURS), fontsize=8)
     for bar, v in zip(bars, mae):
-        ax.text(v + 0.0001, bar.get_y() + bar.get_height() / 2,
-                f"{v:.4f}", va="center", ha="left", fontsize=7)
+        ax.text(
+            v + 0.0001,
+            bar.get_y() + bar.get_height() / 2,
+            f"{v:.4f}",
+            va="center",
+            ha="left",
+            fontsize=7,
+        )
 
     # Panel (1,1) — Wald p-value
     ax = axes[1, 1]
     if len(wald_df) > 0:
         wnames = wald_df["model"].tolist()
-        wvals  = wald_df["wald_p"].tolist()
-        wcols  = ["#C44E52" if p < 0.10 else "#4C72B0" for p in wvals]
-        bars   = ax.barh(wnames, wvals, color=wcols, edgecolor="white", height=0.5)
-        ax.axvline(0.10, color="red",    lw=1.2, ls="--", label="p=0.10")
-        ax.axvline(0.05, color="orange", lw=1.0, ls=":",  label="p=0.05")
+        wvals = wald_df["wald_p"].tolist()
+        wcols = ["#C44E52" if p < 0.10 else "#4C72B0" for p in wvals]
+        bars = ax.barh(wnames, wvals, color=wcols, edgecolor="white", height=0.5)
+        ax.axvline(0.10, color="red", lw=1.2, ls="--", label="p=0.10")
+        ax.axvline(0.05, color="orange", lw=1.0, ls=":", label="p=0.05")
         ax.set_xlabel("Wald p-value (H₀: β_neg + β_pos = 0)")
         ax.set_title("Asymmetry Test — red = |β_neg| ≠ |β_pos|")
         ax.legend(fontsize=9)
         for bar, v in zip(bars, wvals):
-            ax.text(v + 0.002, bar.get_y() + bar.get_height() / 2,
-                    f"{v:.3f}", va="center", ha="left", fontsize=8)
+            ax.text(
+                v + 0.002,
+                bar.get_y() + bar.get_height() / 2,
+                f"{v:.3f}",
+                va="center",
+                ha="left",
+                fontsize=8,
+            )
     else:
-        ax.text(0.5, 0.5, "No Wald results\n(run OLS + lexicon first)",
-                ha="center", va="center", transform=ax.transAxes, fontsize=11)
+        ax.text(
+            0.5,
+            0.5,
+            "No Wald results\n(run OLS + lexicon first)",
+            ha="center",
+            va="center",
+            transform=ax.transAxes,
+            fontsize=11,
+        )
         ax.set_title("Asymmetry Test: Wald p-value")
 
     # Panel (2,0) — Classification accuracy & F1
     ax = axes[2, 0]
     cnames = clf_df["model"].tolist()
-    cx, w  = np.arange(len(cnames)), 0.38
-    ax.barh(cx + w / 2, clf_df["test_accuracy"], w, color="#4C72B0", label="Test accuracy", alpha=0.85)
-    ax.barh(cx - w / 2, clf_df["test_f1"],       w, color="#55A868", label="Test F1",       alpha=0.85)
+    cx, w = np.arange(len(cnames)), 0.38
+    ax.barh(
+        cx + w / 2, clf_df["test_accuracy"], w, color="#4C72B0", label="Test accuracy", alpha=0.85
+    )
+    ax.barh(cx - w / 2, clf_df["test_f1"], w, color="#55A868", label="Test F1", alpha=0.85)
     ax.axvline(0.5, color="black", lw=1.0, ls="--", label="Random baseline")
-    ax.set_yticks(cx); ax.set_yticklabels(cnames, fontsize=8)
+    ax.set_yticks(cx)
+    ax.set_yticklabels(cnames, fontsize=8)
     ax.set_xlabel("Score")
     ax.set_title("Classification: Accuracy & F1 (test set)")
     ax.legend(fontsize=9)
 
     # Panel (2,1) — Train vs Test accuracy
     ax = axes[2, 1]
-    ax.barh(cx + w / 2, clf_df["train_accuracy"], w, color="#4C72B0", label="Train accuracy", alpha=0.85)
-    ax.barh(cx - w / 2, clf_df["test_accuracy"],  w, color="#C44E52", label="Test accuracy",  alpha=0.85)
+    ax.barh(
+        cx + w / 2, clf_df["train_accuracy"], w, color="#4C72B0", label="Train accuracy", alpha=0.85
+    )
+    ax.barh(
+        cx - w / 2, clf_df["test_accuracy"], w, color="#C44E52", label="Test accuracy", alpha=0.85
+    )
     ax.axvline(0.5, color="black", lw=0.8, ls="--")
-    ax.set_yticks(cx); ax.set_yticklabels(cnames, fontsize=8)
+    ax.set_yticks(cx)
+    ax.set_yticklabels(cnames, fontsize=8)
     ax.set_xlabel("Accuracy")
     ax.set_title("Classification: Train vs Test — overfitting check")
     ax.legend(fontsize=9)
@@ -181,12 +215,12 @@ def plot_benchmark(
 # Maps coef column name → (display label, corresponding pval column).
 # Ordered so that negative-sentiment bars appear below positive-sentiment bars.
 _SENT_COEF_COLS = {
-    "coef_neg_rate":          ("NegRate",          "pval_neg_rate"),
-    "coef_pos_rate":          ("PosRate",           "pval_pos_rate"),
-    "coef_neg_rate_pres":     ("NegRate (Pres)",    "pval_neg_rate_pres"),
-    "coef_pos_rate_pres":     ("PosRate (Pres)",    "pval_pos_rate_pres"),
-    "coef_neg_rate_qa":       ("NegRate (Q&A)",     "pval_neg_rate_qa"),
-    "coef_pos_rate_qa":       ("PosRate (Q&A)",     "pval_pos_rate_qa"),
+    "coef_neg_rate": ("NegRate", "pval_neg_rate"),
+    "coef_pos_rate": ("PosRate", "pval_pos_rate"),
+    "coef_neg_rate_pres": ("NegRate (Pres)", "pval_neg_rate_pres"),
+    "coef_pos_rate_pres": ("PosRate (Pres)", "pval_pos_rate_pres"),
+    "coef_neg_rate_qa": ("NegRate (Q&A)", "pval_neg_rate_qa"),
+    "coef_pos_rate_qa": ("PosRate (Q&A)", "pval_pos_rate_qa"),
 }
 
 
@@ -240,14 +274,22 @@ def plot_coefficient(
 
         for val, lab, p in zip(coefs, labels, pvals):
             sign = 1 if val >= 0 else -1
-            ax.text(val + sign * abs(val) * 0.05, lab,
-                    f"p={p:.3f}", va="center",
-                    ha="left" if val >= 0 else "right", fontsize=8)
+            ax.text(
+                val + sign * abs(val) * 0.05,
+                lab,
+                f"p={p:.3f}",
+                va="center",
+                ha="left" if val >= 0 else "right",
+                fontsize=8,
+            )
 
-    axes[0].legend(handles=[
-        mpatches.Patch(color="#C44E52", label="p < 0.10"),
-        mpatches.Patch(color="#AAAAAA", label="p ≥ 0.10"),
-    ], fontsize=8)
+    axes[0].legend(
+        handles=[
+            mpatches.Patch(color="#C44E52", label="p < 0.10"),
+            mpatches.Patch(color="#AAAAAA", label="p ≥ 0.10"),
+        ],
+        fontsize=8,
+    )
     plt.suptitle("Sentiment Coefficients — OLS on CAR[0,3]", fontsize=13, fontweight="bold")
     plt.tight_layout()
     save_path.parent.mkdir(parents=True, exist_ok=True)
@@ -275,31 +317,47 @@ def plot_oos_vs_clf(
     # Left — OOS R²
     ax = axes[0]
     colours = ["#C44E52" if v < 0 else "#4C72B0" for v in benchmark_df["oos_r2"]]
-    bars = ax.barh(benchmark_df["model"], benchmark_df["oos_r2"],
-                   color=colours, edgecolor="white", height=0.6)
+    bars = ax.barh(
+        benchmark_df["model"], benchmark_df["oos_r2"], color=colours, edgecolor="white", height=0.6
+    )
     ax.axvline(0, color="black", lw=1.0, ls="--", label="Null baseline")
     ax.set_xlabel("OOS R²")
     ax.set_title("Regression OOS R² (CAR[0,3])\nred = worse than null", fontsize=11)
     for bar, v in zip(bars, benchmark_df["oos_r2"]):
         sign = 1 if v >= 0 else -1
-        ax.text(v + sign * 0.0005, bar.get_y() + bar.get_height() / 2,
-                f"{v:.4f}", va="center", ha="left" if v >= 0 else "right", fontsize=7)
+        ax.text(
+            v + sign * 0.0005,
+            bar.get_y() + bar.get_height() / 2,
+            f"{v:.4f}",
+            va="center",
+            ha="left" if v >= 0 else "right",
+            fontsize=7,
+        )
 
     # Right — Classification accuracy & F1
     ax = axes[1]
     x, w = np.arange(len(clf_df)), 0.38
     if "test_accuracy" in clf_df.columns:
-        ax.barh(x + w / 2, clf_df["test_accuracy"], w, color="#4C72B0", label="Test accuracy", alpha=0.85)
+        ax.barh(
+            x + w / 2,
+            clf_df["test_accuracy"],
+            w,
+            color="#4C72B0",
+            label="Test accuracy",
+            alpha=0.85,
+        )
     if "test_f1" in clf_df.columns:
         ax.barh(x - w / 2, clf_df["test_f1"], w, color="#55A868", label="Test F1", alpha=0.85)
     ax.axvline(0.5, color="black", lw=1.0, ls="--", label="Random baseline (0.5)")
-    ax.set_yticks(x); ax.set_yticklabels(clf_df["model"], fontsize=8)
+    ax.set_yticks(x)
+    ax.set_yticklabels(clf_df["model"], fontsize=8)
     ax.set_xlabel("Score")
     ax.set_title("Classification: Accuracy & F1 (CAR[0,3] > 0)", fontsize=11)
     ax.legend(fontsize=9)
 
-    plt.suptitle("Predictive Performance: Regression vs Classification",
-                 fontsize=13, fontweight="bold")
+    plt.suptitle(
+        "Predictive Performance: Regression vs Classification", fontsize=13, fontweight="bold"
+    )
     plt.tight_layout()
     save_path.parent.mkdir(parents=True, exist_ok=True)
     plt.savefig(save_path, dpi=150, bbox_inches="tight")
