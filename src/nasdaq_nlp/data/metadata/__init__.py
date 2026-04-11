@@ -32,9 +32,6 @@ from nasdaq_nlp.config import DATASET_DIR, EVENT_METADATA_PATH, ensure_output_di
 if TYPE_CHECKING:
     from nasdaq_nlp.data.loader.schemas import TranscriptRecord
 
-# NOTE: loader imports are done lazily inside functions to avoid circular imports
-# (loader → ect → metadata.schemas → metadata.__init__ → loader)
-# Re-export schema so callers can import from this package
 from nasdaq_nlp.data.metadata.schemas import (
     EASTERN,
     HEADER_DT_RE,

@@ -15,9 +15,6 @@ install:       ## Create venv and install all dependencies via UV
 all: pipeline serve  ## Run full pipeline then launch dashboard
 
 # ── Data pipeline ────────────────────────────────────────────────────────────
-# Runs each pipeline step in order, writing CSVs to outputs/processed/.
-# Re-running is safe — each step overwrites its own output file.
-
 pipeline:      ## Run the full data pipeline (metadata → market → features)
 	@echo "── Step 1: build event metadata ──"
 	uv run python -c "from nasdaq_nlp.data.metadata import build_event_metadata; build_event_metadata()"

@@ -180,8 +180,6 @@ def document_embedding(tokens: list[str], model: Word2Vec) -> np.ndarray:
         # All tokens were OOV (out-of-vocabulary) — return zero vector
         return np.zeros(model.vector_size)
 
-    # Average pool: take the mean across all word vectors
-    # Shape: (n_in_vocab, vector_size) → (vector_size,)
     return np.mean(word_vectors, axis=0)
 
 

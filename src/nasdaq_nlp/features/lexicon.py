@@ -151,9 +151,6 @@ def compute_lexicon_features(
         "total_tokens": total_tokens,
         "neg_count": neg_count,
         "pos_count": pos_count,
-        # Rates = counts normalised by total tokens
-        # This controls for transcript length (longer calls have more words,
-        # so raw counts would be misleading)
         "neg_rate": neg_count / total_tokens,
         "pos_rate": pos_count / total_tokens,
     }

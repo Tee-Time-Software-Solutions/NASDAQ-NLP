@@ -117,9 +117,6 @@ def build_event_panel(
         event_id, ticker, file_name, event_trading_day,
         date, relative_day, stock_return, market_return
     """
-    # Build a (index_ticker, date) → return lookup.
-    # If index_returns has an `index_ticker` column (multi-index run), group by it.
-    # Otherwise, treat the whole series as a single unnamed index (backwards compat).
     if "index_ticker" in index_returns.columns:
         index_maps: dict[str, dict] = {
             idx: dict(zip(pd.to_datetime(grp["date"]), grp["return"]))

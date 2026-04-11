@@ -86,8 +86,6 @@ class FinBertConfig:
 # ---------------------------------------------------------------------------
 
 # Simple regex-based sentence splitter.
-# We avoid SpaCy here to keep the dependency lighter — SpaCy adds 400MB+ models.
-# The regex works well enough for formal financial text (few abbreviations mid-sentence).
 _SENTENCE_END_RE = re.compile(r"(?<=[.!?])\s+(?=[A-Z])")
 
 
