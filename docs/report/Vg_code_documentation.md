@@ -1,25 +1,14 @@
-\documentclass[12pt,a4paper]{article}
-\usepackage[margin=2.5cm]{geometry}
-\usepackage{amsmath}
-\usepackage{hyperref}
-\usepackage{parskip}
+# Code Documentation
+**Part V(g) — Modelling Report**
+*Asymmetric Sentiment Effects in Earnings Calls — NLP Course, Group Project*
 
-\title{\textbf{Code Documentation}\\[0.3em]
-\large Part V(g) --- Modelling Report\\
-Asymmetric Sentiment Effects in Earnings Calls}
-\author{NLP Course --- Group Project}
-\date{}
+---
 
-\begin{document}
-\maketitle
+## Package Structure
 
-\section{Package Structure}
+The codebase is organized as an installable Python package (`nasdaq-nlp`) under `src/nasdaq_nlp/`, following the src-layout convention. This prevents accidental imports of the uninstalled source directory.
 
-The codebase is organized as an installable Python package (\texttt{nasdaq-nlp})
-under \texttt{src/nasdaq\_nlp/}, following the src-layout convention.
-This prevents accidental imports of the uninstalled source directory.
-
-\begin{verbatim}
+```
 src/nasdaq_nlp/
 ├── config.py           All output file paths as Path constants
 ├── data/
@@ -36,15 +25,13 @@ src/nasdaq_nlp/
 │   └── classifiers.py  NB, LogReg, Tree, RF, MLP classifiers
 ├── evaluation/         OOS R², MAE, AUC utilities
 └── visualization.py    All benchmark plots
-\end{verbatim}
+```
 
-\section{Module Documentation}
+## Module Documentation
 
-Every module begins with a docstring explaining its purpose and public API.
-Every public function includes \texttt{Parameters} and \texttt{Returns} sections.
-Example from \texttt{data/loader/main.py}:
+Every module begins with a docstring explaining its purpose and public API. Every public function includes `Parameters` and `Returns` sections. Example from `data/loader/main.py`:
 
-\begin{verbatim}
+```python
 def scan_transcripts(
     dataset_dir: Path = DATASET_DIR,
     ect_dir: Path = ECT_DATASET_DIR,
@@ -69,61 +56,55 @@ def scan_transcripts(
     list[TranscriptRecord]
         Sorted by (ticker, year, quarter).
     """
-\end{verbatim}
+```
 
-\section{Setup and Installation}
+## Setup and Installation
 
-\begin{verbatim}
+```bash
 # Install UV package manager (if not already installed)
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
 # Install all dependencies and the nasdaq_nlp package
 uv sync
-\end{verbatim}
+```
 
-\section{Running the Pipeline}
+## Running the Pipeline
 
-\begin{verbatim}
+```bash
 make pipeline     # full pipeline: metadata -> returns -> features -> models
 make serve        # launch Streamlit dashboard
 make lint         # ruff linter check
 make format       # auto-fix formatting with ruff
 make clean        # delete outputs/ (keeps dataset/ intact)
-\end{verbatim}
+```
 
-Individual pipeline steps can be re-run in isolation.
-Each step reads its input CSV, applies a single transformation, and writes its
-output CSV to \texttt{outputs/processed/}.
+Individual pipeline steps can be re-run in isolation. Each step reads its input CSV, applies a single transformation, and writes its output CSV to `outputs/processed/`.
 
-\section{Reproducibility}
+## Reproducibility
 
-\begin{itemize}
-  \item Dependency versions are pinned in \texttt{uv.lock}.
-  \item All sklearn models use \texttt{random\_state=42}.
-  \item Word2Vec is the only non-deterministic step; its output is cached after
-        the first run so subsequent runs are deterministic.
-  \item The full analysis can be reproduced from scratch via:
-\begin{verbatim}
+- Dependency versions are pinned in `uv.lock`.
+- All sklearn models use `random_state=42`.
+- Word2Vec is the only non-deterministic step; its output is cached after the first run so subsequent runs are deterministic.
+- The full analysis can be reproduced from scratch via:
+
+```bash
 uv sync
 make pipeline
 jupyter nbconvert --execute notebooks/03_modeling.ipynb
 jupyter nbconvert --execute notebooks/04_results.ipynb
-\end{verbatim}
-\end{itemize}
+```
 
-\section{Code Quality}
+## Code Quality
 
-Static analysis and formatting are enforced by \texttt{ruff}:
-\begin{verbatim}
+Static analysis and formatting are enforced by `ruff`:
+
+```bash
 make lint     # ruff check + format --check on src/
 make format   # ruff check --fix + format src/
-\end{verbatim}
+```
 
-All modules in \texttt{src/nasdaq\_nlp/} pass ruff without warnings.
+All modules in `src/nasdaq_nlp/` pass ruff without warnings.
 
-\section{Repository}
+## Repository
 
-Full source code, notebooks, and documentation:
-\url{https://github.com/Tee-Time-Software-Solutions/NASDAQ-NLP}
-
-\end{document}
+Full source code, notebooks, and documentation: https://github.com/Tee-Time-Software-Solutions/NASDAQ-NLP
